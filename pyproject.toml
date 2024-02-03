@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "kivy-rcon"
+version = "0.1.0"
+description = ""
+authors = ["Lukium <mrlukium@outlook.com>"]
+license = "Expressed Permission Only"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+Flask = "^3.0.1"
+waitress = "^2.1.2"
+pywebview = "^4.4.1"
+requests = "^2.31.0"
+pillow = "^10.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

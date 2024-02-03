@@ -1,0 +1,178 @@
+import logging
+from queue import Queue
+import subprocess
+import threading
+
+
+def execute_rcon(ip_address, port, password, command, queue):
+    cmd = f"python ./rcon/rcon.py -i {ip_address} -p {port} -P {password} {command}"
+    logging.info(f"Executing command: {command}")
+
+    try:
+        output = subprocess.check_output(
+            cmd, shell=True, stderr=subprocess.STDOUT
+        )
+        # logging.info(f"Command Output: {output.decode('utf-8')}")
+        queue.put(output.decode("utf-8").strip())
+    except subprocess.CalledProcessError as e:
+        error_output = e.output.decode("utf-8")
+        # logging.error(f"Error executing command: {error_output}")
+        queue.put(error_output.strip())
+        
+        
+def rcon_broadcast(ip_address, port, password, message) -> dict:
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, f"broadcast {message}", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    logging.info(f"RCON Broadcast Result: {result}")
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Broadcast Error"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Broadcast sent successfully"
+
+    return reply
+
+
+def rcon_connect(ip_address, port, password) -> dict:
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, "Info", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    logging.info(f"RCON Connection Result: {result}")
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = f"Connection Error: {result.split(":")[1].strip().capitalize()}"
+        reply["server_name"] = "N/A"
+        reply["server_version"] = "N/A"
+    elif "Error: Invalid Password?" in result:
+        reply["status"] = "error"
+        reply["message"] = "Connection Error: Bad RCON Password?"
+        reply["server_name"] = "N/A"
+        reply["server_version"] = "N/A"
+    elif "Could not resolve domain" in result:
+        reply["status"] = "error"
+        reply["message"] = "Connection Error: Could not resolve domain name to a valid IP Address"
+        reply["server_name"] = "N/A"
+        reply["server_version"] = "N/A"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Connected to server successfully"
+        reply["server_name"] = result.split("]")[1].strip()
+        reply["server_version"] = result.split("[")[1].split("]")[0].strip()
+
+    return reply
+
+def rcon_fetch_players(ip_address, port, password) -> dict:
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, "ShowPlayers", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    reply = {}
+    logging.info(f"RCON Fetch Players Result: {result}")
+    
+    # Use first line of result to determine if the command was successful, expect "name,playeruid,steamid"
+    if "name,playeruid,steamid" in result:
+        reply["status"] = "success"
+        reply["message"] = "Players fetched successfully"
+        # Use first line of results as the header, and the rest as the player list
+        players = result.split("\n")[1:]
+        # Each row is a player, with PlayerName, PlayerUID, and SteamID separated by commas
+        player_list = []
+        for player in players:
+            player_data = player.split(",")
+            player_list.append(
+                {
+                    "name": player_data[0],
+                    "playeruid": player_data[1],
+                    "steamid": player_data[2],
+                }
+            )
+        reply["player_count"] = len(player_list)
+        reply["players"] = player_list
+    elif "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = f"Connection Error: {result.split(":")[1].strip().capitalize()}"
+        reply["player_count"] = 0
+        reply["players"] = []
+    else:
+        reply["status"] = "error"
+        reply["message"] = "Connection Error"
+        reply["player_count"] = 0
+        reply["players"] = []   
+
+    return reply
+
+
+def rcon_kick_player(ip_address, port, password, player_steamid) -> dict:
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, f"KickPlayer {player_steamid}", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    logging.info(f"RCON Kick Player Result: {result}")
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Kick Error"
+    elif "Failed to Kick" in result:
+        reply["status"] = "error"
+        reply["message"] = "Failed to kick player"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Player kicked successfully"
+
+    return reply
+
+
+def rcon_ban_player(ip_address, port, password, player_steamid) -> dict:
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, f"BanPlayer {player_steamid}", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    logging.info(f"RCON Ban Player Result: {result}")
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Ban Error"
+    elif "Failed to Ban" in result:
+        reply["status"] = "error"
+        reply["message"] = "Failed to ban player"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Player banned successfully"
+
+    return reply
