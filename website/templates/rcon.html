@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en" style="overflow: hidden">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{% block title %}Flask App{% endblock %}</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+            rel="stylesheet"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <style>
+            /* Custom styles for the chevron button */
+            .btn-custom-chevron {
+                color: darkgray; /* Default color */
+            }
+
+            .btn-custom-chevron:hover {
+                color: lightgray; /* Color on hover */
+            }
+        </style>
+    </head>
+    <body data-bs-theme="dark" class="d-flex flex-column">
+        <!-- Connection Info -->
+        <div class="row mt-3">
+            <div class="col">
+                <p>Status: <span id="connectionStatusIndicator">🔴</span></p>
+            </div>
+            <div class="col">
+                <p>Name: <span id="serverName">N/C</span></p>
+            </div>
+            <div class="col">
+                <p>Version: <span id="serverVersion">N/C</span></p>
+            </div>
+            <div class="col">
+                <p>Players: <span id="playerCount">N/C</span></p>
+            </div>
+        </div>
+        <!-- Connection Form -->
+        <form id="rconForm" action="/connect" method="post">
+            <div class="row align-items-end">
+                <div class="col">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="ipAddress"
+                        name="ip"
+                        placeholder="Server IP | Domain"
+                    />
+                </div>
+                <div class="col">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="portNumber"
+                        name="port"
+                        placeholder="Server Port"
+                    />
+                </div>
+                <div class="col">
+                    <input
+                        type="password"
+                        class="form-control"
+                        id="password"
+                        name="password"
+                        placeholder="Password"
+                    />
+                </div>
+                <div class="col-auto">
+                    <button
+                        type="submit"
+                        class="btn btn-success"
+                        id="connectButton"
+                    >
+                        Connect
+                    </button>
+                </div>
+            </div>
+        </form>
+        <!-- Players Connected Section -->
+        <div class="container-fluid mt-3 border rounded">
+            <div class="container-fluid border-bottom">
+                <div class="row font-weight-bold text-center">
+                    <div class="col">Player Name</div>
+                    <div class="col">UID</div>
+                    <div class="col">SteamID</div>
+                    <div class="col">Actions</div>
+                </div>
+            </div>
+            <div
+                id="playersList"
+                class="container-fluid mt-1"
+                style="min-height: 250px; max-height: 250px; overflow-y: auto"
+            >
+                <!-- Player entries will be appended here -->
+            </div>
+        </div>
+        <!-- Broadcast Message Form -->
+        <form id="broadcastForm" action="/broadcast" method="post">
+            <div class="row mt-2 mb-2">
+                <div class="col">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="broadcastMessage"
+                        placeholder="Broadcast Message - Please Connect First!"
+                    />
+                </div>
+                <div class="col-auto">
+                    <button
+                        type="submit"
+                        id="sendBroadcast"
+                        class="btn btn-primary"
+                    >
+                        Send
+                    </button>
+                </div>
+            </div>
+        </form>
+        <!-- Textarea for displaying command outputs -->
+        <textarea
+            id="commandOutput"
+            class="form-control mt-2"
+            rows="8"
+            style="height: 200px; resize: none"
+            placeholder="Command Output - Please Connect First!"
+            readonly
+        ></textarea>
+        <!-- Confirmation Modal for Kick/Ban -->
+        <div
+            class="modal fade"
+            id="actionConfirmationModal"
+            tabindex="-1"
+            aria-labelledby="actionConfirmationModalLabel"
+            aria-hidden="true"
+        >
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5
+                            class="modal-title"
+                            id="actionConfirmationModalLabel"
+                        >
+                            Confirm Action
+                        </h5>
+                        <button
+                            type="button"
+                            class="close"
+                            data-dismiss="modal"
+                            aria-label="Close"
+                        >
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to <span id="actionType"></span>
+                        <span id="actionPlayerName"></span>?
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-dismiss="modal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-danger"
+                            id="confirmAction"
+                        >
+                            Yes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                // Define elements
+                const connectionStatusIndicator = document.getElementById(
+                    "connectionStatusIndicator"
+                );
+                const serverName = document.getElementById("serverName");
+                const serverVersion = document.getElementById("serverVersion");
+                const playerCount = document.getElementById("playerCount");
+                const playersList = document.getElementById("playersList");
+                const sendBroadcastButton =
+                    document.getElementById("sendBroadcast");
+                const broadcastMessageField =
+                    document.getElementById("broadcastMessage");
+                const connectButton = document.getElementById("connectButton");
+                const ipAddressField = document.getElementById("ipAddress");
+                const portNumberField = document.getElementById("portNumber");
+                const passwordField = document.getElementById("password");
+                const commandOutput = document.getElementById("commandOutput");
+
+                // Define variables
+                let notConnectedString = "N/C";
+                let is_connected = false; // Variable to track connection status
+                let is_communicating = false; // Variable to track communication status
+                let flashInterval; // Variable to store the interval ID
+                let monitoringInterval; // Variable to store the interval ID
+                let lastPlayerList = []; // Stores the last known player list
+                let playerVisibilityStates = {}; // Stores the visibility state of player info
+                let lastPlayerDetails = {}; // Stores the last known details for each player
+
+                // Define Settings
+                const flashDelay = 500; // Flash delay in milliseconds
+                const monitoringDelay = 1000; // Monitoring delay in milliseconds
+
+                // Start defining functions
+
+                // Function to send output messages to the textarea
+                function sendOutputMessage(message) {
+                    const now = new Date();
+                    const timestamp = now.toLocaleString(); // Adjust date format to your preference
+                    const formattedMessage = `[${timestamp}] ${message}\n`;
+                    commandOutput.value += formattedMessage;
+                    commandOutput.scrollTop = commandOutput.scrollHeight;
+                }
+
+                // Function to enable or disable elemeents based on connection status
+                function updateUIBasedOnConnectionStatus() {
+                    sendBroadcastButton.disabled = !is_connected;
+                    broadcastMessageField.disabled = !is_connected;
+                    ipAddressField.disabled = is_connected;
+                    portNumberField.disabled = is_connected;
+                    passwordField.disabled = is_connected;
+
+                    broadcastMessageField.placeholder = is_connected
+                        ? "Broadcast Message"
+                        : "Broadcast Message - Please Connect First!";
+                    connectionStatusIndicator.textContent = is_connected
+                        ? "🟢"
+                        : "🔴";
+                    connectButton.innerText = is_connected
+                        ? "Disconnect"
+                        : "Connect";
+                    connectButton.classList.remove(
+                        is_connected ? "btn-success" : "btn-danger"
+                    );
+                    connectButton.classList.add(
+                        is_connected ? "btn-danger" : "btn-success"
+                    );
+                    if (!is_connected) {
+                        playersList.innerHTML = "";
+                        playerCount.textContent = notConnectedString;
+                        serverName.textContent = notConnectedString;
+                        serverVersion.textContent = notConnectedString;
+                    }
+                }
+
+                // Function to start flashing the connection status indicator
+                function startFlashing() {
+                    let isYellow = true; // Toggle state
+                    connectionStatusIndicator.textContent = "🟡"; // Start with Yellow
+                    flashInterval = setInterval(() => {
+                        connectionStatusIndicator.textContent = isYellow
+                            ? "🟠"
+                            : "🟡";
+                        isYellow = !isYellow; // Toggle the state
+                    }, flashDelay); // Flash every 0.5 seconds
+                }
+
+                // Function to stop flashing the connection status indicator
+                function stopFlashing() {
+                    clearInterval(flashInterval); // Stop flashing
+                }
+
+                // Function to start monitoring
+                function startMonitoring() {
+                    // Call the async function immediately in case you want the action to be taken right away
+                    fetchAndDisplayPlayersAsync();
+
+                    // Set up an interval to run the async function repeatedly
+                    const intervalId = setInterval(() => {
+                        if (is_communicating) {
+                            return;
+                        }
+                        if (!is_connected) {
+                            sendOutputMessage(
+                                "Connection to server lost. Stopping monitoring."
+                            );
+                            updateUIBasedOnConnectionStatus();
+                            stopMonitoring(monitoringInterval);
+                            return;
+                        }
+                        fetchAndDisplayPlayersAsync();
+                    }, monitoringDelay);
+
+                    // Optional: Store the intervalId if you need to clear it later
+                    return intervalId;
+                }
+
+                // To stop monitoring, you can use clearInterval with the stored intervalId
+                function stopMonitoring(intervalId) {
+                    clearInterval(intervalId);
+                }
+
+                // Function to handle the form submission
+
+                document
+                    .getElementById("rconForm")
+                    .addEventListener("submit", function (e) {
+                        e.preventDefault();
+
+                        if (!is_connected) {
+                            startFlashing(); // Begin flashing when attempting to connect
+                            is_communicating = true; // Set communicating status to true
+                            let formData = new FormData(this);
+                            let object = {};
+                            formData.forEach(
+                                (value, key) => (object[key] = value)
+                            );
+                            let json = JSON.stringify(object);
+
+                            fetch("/connect", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: json,
+                            })
+                                .then((response) => response.json())
+                                .then((data) => {
+                                    stopFlashing(); // Stop flashing after fetch operation is complete
+                                    is_communicating = false; // Set communicating status to false
+                                    is_connected = data.status === "success";
+                                    serverName.textContent = is_connected
+                                        ? data.server_name
+                                        : notConnectedString;
+                                    serverVersion.textContent = is_connected
+                                        ? data.server_version
+                                        : notConnectedString;
+                                    sendOutputMessage(data.message);
+                                    // Start monitoring if connected
+                                    if (is_connected) {
+                                        monitoringInterval = startMonitoring();
+                                    } else {
+                                        stopMonitoring(monitoringInterval);
+                                    }
+                                })
+                                .catch((error) => {
+                                    console.error("Error:", error);
+                                    serverName.textContent = notConnectedString;
+                                    serverVersion.textContent =
+                                        notConnectedString;
+                                    is_connected = false;
+                                })
+                                .finally(() => {
+                                    updateUIBasedOnConnectionStatus();
+                                });
+                        } else {
+                            // Handle disconnection logic here
+                            stopMonitoring(monitoringInterval); // Stop monitoring if connected
+                            stopFlashing(); // Stop flashing as we are manually setting to disconnected
+                            is_connected = false;
+                            serverName.textContent = notConnectedString;
+                            serverVersion.textContent = notConnectedString;
+                            playerCount.textContent = notConnectedString;
+                            sendOutputMessage("Disconnected from the server.");
+                            updateUIBasedOnConnectionStatus();
+                        }
+                    });
+
+                // Function to handle the broadcast message sending
+                document
+                    .getElementById("sendBroadcast")
+                    .addEventListener("click", function (e) {
+                        e.preventDefault(); // Prevent form from submitting the traditional way
+                        startFlashing(); // Begin flashing when attempting to broadcast
+                        is_communicating = true; // Set communicating status to true
+
+                        // Reuse the connection info and add the broadcast message
+                        let ip = document.getElementById("ipAddress").value;
+                        let port = document.getElementById("portNumber").value;
+                        let password =
+                            document.getElementById("password").value;
+                        let message =
+                            document.getElementById("broadcastMessage").value;
+
+                        // Prepare the data as JSON
+                        let data = { ip, port, password, message };
+                        let json = JSON.stringify(data);
+
+                        // AJAX request to the Flask backend for broadcasting
+                        fetch("/broadcast", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: json,
+                        })
+                            .then((response) => response.json())
+                            .then((data) => {
+                                stopFlashing(); // Stop flashing after fetch operation is complete
+                                is_communicating = false; // Set communicating status to false
+                                // Handle response
+                                sendOutputMessage(data.message);
+                            })
+                            .catch((error) => {
+                                console.error("Error:", error);
+                                document.getElementById(
+                                    "commandOutput"
+                                ).value +=
+                                    "Broadcast Error: An unexpected error occurred.\n";
+                            });
+
+                        // Optionally clear the broadcast message input after sending
+                        document.getElementById("broadcastMessage").value = "";
+                    });
+
+                // Function to fetch and display players
+                async function fetchAndDisplayPlayersAsync() {
+                    if (!is_connected) {
+                        playersList.innerHTML =
+                            '<div class="row"><div class="col">Please connect to the server first.</div></div>';
+                        return;
+                    }
+                    startFlashing(); // Begin flashing when attempting to fetch players
+                    is_communicating = true; // Set communicating status to true
+
+                    const requestData = JSON.stringify({
+                        ip: ipAddressField.value,
+                        port: portNumberField.value,
+                        password: passwordField.value,
+                    });
+
+                    fetch("/getplayers", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: requestData,
+                    })
+                        .then((response) => response.json())
+                        .then((data) => {
+                            stopFlashing(); // Stop flashing after fetch operation is complete
+                            is_communicating = false; // Set communicating status to false
+
+                            if (data.status === "error") {
+                                is_connected = false;
+                                sendOutputMessage("Failed to fetch players.");
+                                return;
+                            }
+
+                            // Clear existing player entries, keeping the header row
+                            playersList.innerHTML = "";
+
+                            const currentPlayerSteamIds = data.players.map(
+                                (player) => player.steamid
+                            );
+
+                            // Announce player joins
+                            currentPlayerSteamIds.forEach((steamid) => {
+                                if (!lastPlayerDetails[steamid]) {
+                                    sendOutputMessage(
+                                        `Player Joined - ${
+                                            data.players.find(
+                                                (p) => p.steamid === steamid
+                                            ).name
+                                        }`
+                                    );
+                                }
+                            });
+
+                            // Announce player leaves
+                            Object.keys(lastPlayerDetails).forEach(
+                                (steamid) => {
+                                    if (
+                                        !currentPlayerSteamIds.includes(steamid)
+                                    ) {
+                                        sendOutputMessage(
+                                            `Player Left - ${lastPlayerDetails[steamid].name}`
+                                        );
+                                    }
+                                }
+                            );
+
+                            // Update player details and visibility states for current players
+                            data.players.forEach((player) => {
+                                const steamid = player.steamid;
+                                const isVisible =
+                                    playerVisibilityStates[steamid] || false;
+                                lastPlayerDetails[steamid] = {
+                                    ...player,
+                                    isVisible,
+                                };
+
+                                const playerRow = document.createElement("div");
+                                playerRow.className = "row mt-1";
+
+                                const uidDisplay = isVisible
+                                    ? player.playeruid
+                                    : "********";
+                                const steamIdDisplay = isVisible
+                                    ? player.steamid
+                                    : "************";
+                                const visibilityButtonText = isVisible
+                                    ? "🔒"
+                                    : "🔓";
+
+                                playerRow.innerHTML = `
+                                <div class="col">${player.name}</div>
+                                <div class="col" id="uid-${steamid}">${uidDisplay}</div>
+                                <div class="col" id="steamid-${steamid}">${steamIdDisplay}</div>
+                                <div class="col">
+                                    <button class="btn btn-sm btn-outline-secondary visibility-toggle" data-steamid="${steamid}">${visibilityButtonText}</button>
+                                    <button class="btn btn-sm btn-outline-warning kick-player" data-steamid="${steamid}" data-playername="${player.name}" title="Kick Player">🦵</button>
+                                    <button class="btn btn-sm btn-outline-danger ban-player" data-steamid="${steamid}" data-playername="${player.name}" title="Ban Player">⛔</button
+                                </div>
+                            `;
+
+                                playersList.appendChild(playerRow);
+                            });
+
+                            // After appending all player rows, attach event listeners to the visibility toggle buttons
+                            document
+                                .querySelectorAll(".visibility-toggle")
+                                .forEach((button) => {
+                                    button.addEventListener(
+                                        "click",
+                                        function () {
+                                            const steamid =
+                                                this.getAttribute(
+                                                    "data-steamid"
+                                                );
+                                            const currentVisibility =
+                                                playerVisibilityStates[steamid];
+                                            playerVisibilityStates[steamid] =
+                                                !currentVisibility;
+
+                                            const uidElement =
+                                                document.getElementById(
+                                                    `uid-${steamid}`
+                                                );
+                                            const steamIdElement =
+                                                document.getElementById(
+                                                    `steamid-${steamid}`
+                                                );
+
+                                            uidElement.textContent =
+                                                !currentVisibility
+                                                    ? lastPlayerDetails[steamid]
+                                                          .playeruid
+                                                    : "********";
+                                            steamIdElement.textContent =
+                                                !currentVisibility
+                                                    ? lastPlayerDetails[steamid]
+                                                          .steamid
+                                                    : "************";
+                                            this.innerHTML = !currentVisibility
+                                                ? "🔒"
+                                                : "🔓";
+                                        }
+                                    );
+                                });
+
+                            // Remove details for players who have left
+                            Object.keys(lastPlayerDetails).forEach(
+                                (steamid) => {
+                                    if (
+                                        !currentPlayerSteamIds.includes(steamid)
+                                    ) {
+                                        delete lastPlayerDetails[steamid];
+                                    }
+                                }
+                            );
+
+                            // Update player count
+                            playerCount.textContent =
+                                data.players.length.toString();
+                        })
+                        .catch((error) => {
+                            console.error("Error fetching players:", error);
+                            sendOutputMessage("Error fetching player list.");
+                        })
+                        .finally(() => {
+                            updateUIBasedOnConnectionStatus();
+                        });
+                }
+
+                function toggleVisibility(steamid) {
+                    const isVisible = !playerVisibilityStates[steamid];
+                    playerVisibilityStates[steamid] = isVisible;
+
+                    // Directly update the UI elements for this player's visibility
+                    const uidElement = document.getElementById(
+                        `uid-${steamid}`
+                    );
+                    const steamIdElement = document.getElementById(
+                        `steamid-${steamid}`
+                    );
+                    const buttonElement = document.getElementById(
+                        `toggle-${steamid}`
+                    );
+
+                    if (isVisible) {
+                        // Assuming lastPlayerDetails[steamid] holds the latest player info
+                        uidElement.textContent =
+                            lastPlayerDetails[steamid].playeruid;
+                        steamIdElement.textContent =
+                            lastPlayerDetails[steamid].steamid;
+                        buttonElement.innerHTML = "🔒";
+                    } else {
+                        uidElement.textContent = "********";
+                        steamIdElement.textContent = "************";
+                        buttonElement.innerHTML = "🔓";
+                    }
+                }
+
+                // Event delegation for kick and ban buttons
+                document.addEventListener("click", function (e) {
+                    if (
+                        e.target.matches(".kick-player") ||
+                        e.target.matches(".ban-player")
+                    ) {
+                        const playerName =
+                            e.target.getAttribute("data-playername");
+                        const steamid = e.target.getAttribute("data-steamid");
+                        const action = e.target.matches(".kick-player")
+                            ? "kick"
+                            : "ban";
+                        showConfirmationModal(action, playerName, steamid);
+                    }
+                });
+
+                function showConfirmationModal(action, playerName, steamid) {
+                    $("#actionType").text(action);
+                    $("#actionPlayerName").text(playerName);
+                    $("#confirmAction").data("action", action); // Store action for use in confirmation
+                    $("#confirmAction").data("steamid", steamid); // Store steamid for use in confirmation
+                    $("#actionConfirmationModal").modal("show");
+                }
+
+                // Handle modal confirmation button click
+                $("#confirmAction").click(function () {
+                    const action = $(this).data("action");
+                    const steamid = $(this).data("steamid");
+                    const playerName = $("#actionPlayerName").text(); // Get the player name from the modal
+                    kickOrBanPlayer(action, playerName, steamid);
+                    $("#actionConfirmationModal").modal("hide");
+                });
+
+                function kickOrBanPlayer(action, playerName, steamid) {
+                    const url =
+                        action === "kick" ? "/kickplayer" : "/banplayer";
+                    const data = JSON.stringify({
+                        ip: ipAddressField.value,
+                        port: portNumberField.value,
+                        password: passwordField.value,
+                        player_steamid: steamid,
+                    });
+
+                    fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: data,
+                    })
+                        .then((response) => response.json())
+                        .then((data) => {
+                            if (data.status === "success") {
+                                // Update the success message format to include player name and SteamID
+                                sendOutputMessage(
+                                    `Player ${
+                                        action === "kick" ? "Kicked" : "Banned"
+                                    } - ${playerName} (SteamID: ${steamid})`
+                                );
+                            } else {
+                                // Handle error case
+                                sendOutputMessage(data.message);
+                            }
+                        })
+                        .catch((error) => {
+                            console.error("Error:", error);
+                        });
+                }
+
+                // Fix for modal not closing with Bootstrap's close and cancel buttons
+                $('.close, .btn-secondary[data-dismiss="modal"]').click(
+                    function () {
+                        $(this).closest(".modal").modal("hide");
+                    }
+                );
+
+                // End defining functions
+
+                // Initial UI update
+                updateUIBasedOnConnectionStatus();
+            });
+        </script>
+    </body>
+</html>

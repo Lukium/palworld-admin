@@ -1,0 +1,50 @@
+{% extends "base.html" %} {% block content %}
+<div class="container mt-4 pt-4 pe-4">
+    <div class="row justify-content-center mt-3 mb-5">
+        <div class="col-md-12 text-center">
+            <!-- Top Spacer for slight vertical adjustment -->
+            <!-- Adjust 'my-4' to increase or decrease space -->
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-12">
+            <div class="text-center">
+                <img
+                    src="{{ url_for('static', filename='images/palworld-logo.png') }}"
+                    alt="Palword Logo"
+                    class="img-fluid mb-3"
+                />
+                <h1>DEDICATED SERVER TOOLS</h1>
+            </div>
+            <div class="mt-5 mb-5">
+                <p>
+                    Welcome to PalWorld Dedicated Server Tools, your streamlined
+                    solution for managing your PalWorld server effortlessly. Our
+                    RCON tool is designed for intuitive use, ensuring that you
+                    have reliable and straightforward remote control over your
+                    server's operation. As we continuously enhance our offerings
+                    with frequent updates and responsive support, you can count
+                    on us to help maintain smooth and stable server management.
+                    Join our community and discover how our dedicated tools can
+                    support your PalWorld adventure with functionality and ease.
+                </p>
+            </div>
+            <div class="mt-5 mb-5 text-center">
+                <p>For Feedback and Support</p>
+                <a
+                    href="https://discord.gg/lukium"
+                    target="_blank"
+                    class="btn btn-primary"
+                    >Join our Discord</a
+                >
+            </div>
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-12 text-center">
+            <!-- Bottom Spacer for slight vertical adjustment -->
+            <!-- Adjust 'my-4' to increase or decrease space -->
+        </div>
+    </div>
+</div>
+{% endblock %}

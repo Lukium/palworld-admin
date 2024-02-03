@@ -1,0 +1,55 @@
+{% extends "base.html" %} {% block content %}
+<!-- This is the RCON loader page. It will load the RCON page in an iframe. -->
+<!-- div with rcon-iframe -->
+<script>
+    // Try to load http://localhost:8210/rcon in an iframe, if it fails, show an error message
+    function loadRcon() {
+        var iframe = document.getElementById("rcon-iframe");
+        iframe.src = "http://localhost:8210/rcon";
+        iframe.onload = function () {
+            document.getElementById("rcon-error").style.display = "none";
+            // iframe.style.overflow = "hidden";
+            // iframe.style.border = "none";
+            iframe.style.display = "block";
+        };
+        iframe.onerror = function () {
+            document.getElementById("rcon-error").style.display = "block";
+            iframe.style.display = "none";
+        };
+    }
+</script>
+<!-- make the container the full width of the page -->
+<div class="container-fluid" style="overflow: hidden">
+    <!-- This should be container-fluid to take full width -->
+    <div class="container-fluid row pt-3 mb-3">
+        <div class="container-fluid col text-center">
+            <h5>RCON</h5>
+        </div>
+    </div>
+    <div class="container-fluid row" style="overflow: hidden">
+        <div class="container-fluid col" style="overflow: hidden">
+            <div
+                class="alert alert-danger"
+                id="rcon-error"
+                style="display: none"
+            >
+                <p>
+                    Failed to load RCON. Make sure the RCON server is running
+                    and accessible at <code>http://localhost:8210/rcon</code>.
+                </p>
+            </div>
+            <iframe
+                id="rcon-iframe"
+                style="
+                    width: 100%;
+                    height: 700px;
+                    border: none;
+                    overflow: hidden;
+                    display: none;
+                "
+                onload="loadRcon()"
+            ></iframe>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,8 +1,7 @@
-import mimetypes
 from mimetypes import guess_type
 
 from flask import Flask, Response, abort
-from jinja2 import Environment, BaseLoader, TemplateNotFound
+from jinja2 import BaseLoader, TemplateNotFound
 import requests
 
 
@@ -24,6 +23,8 @@ STATIC_FILES = [
 
 # Custom Loader
 class InMemoryLoader(BaseLoader):
+    """A Jinja2 template loader that loads templates from memory."""
+
     def get_source(self, environment, template):
         if template in templates_in_memory:
             source = templates_in_memory[template]
@@ -38,6 +39,7 @@ class InMemoryLoader(BaseLoader):
 
 # Download templates at startup
 def download_templates():
+    """Download the templates from the remote server and store them in memory."""
     base_url = f"{BASE_URL}/download-template/"
     template_urls = [f"{base_url}{template}" for template in TEMPLATES]
     for url in template_urls:
@@ -46,12 +48,14 @@ def download_templates():
             # Assuming URL basename can be a template identifier
             template_name = url.split("/")[-1]
             templates_in_memory[template_name] = response.text
-            logging.info(f"Downloaded template: {template_name}")
+            info = f"Downloaded template: {template_name}"
+            logging.info(info)
 
     app.jinja_loader = InMemoryLoader()
 
 
 def download_static_files():
+    """Download the static files from the remote server and store them in memory."""
     base_url = f"{BASE_URL}/download-static/"
 
     static_file_urls = [f"{base_url}{file}" for file in STATIC_FILES]
@@ -61,24 +65,27 @@ def download_static_files():
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
                 file_path = "/static/" + url.split("download-static/")[-1]
-                logging.info(f"Downloaded static file: {file_path}")
+                info = f"Downloaded static file: {file_path}"
+                logging.info(info)
                 # Determine if the content is binary
                 if "text" in response.headers.get("Content-Type", ""):
                     static_files_in_memory[file_path] = response.text
                 else:
                     static_files_in_memory[file_path] = response.content
             else:
-                logging.warning(
-                    f"Failed to download {url}, status code {response.status_code}"
-                )
+                info = f"Failed to download {url}, status code {response.status_code}"
+                logging.warning(info)
         except requests.RequestException as e:
-            logging.error(f"Error downloading {url}: {e}")
+            error_message = f"Error downloading {url}: {e}"
+            logging.error(error_message)
 
 
 @app.route("/static/<path:filename>")
 def static(filename):
+    """Serve static files from memory."""
     file_path = f"/static/{filename}"
-    logging.info(f"Requested static file: {file_path}")
+    info = f"Requested static file: {file_path}"
+    logging.info(info)
     if file_path in static_files_in_memory:
         content = static_files_in_memory[file_path]
         # Use the mimetypes module to guess the correct MIME type
