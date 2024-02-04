@@ -3,21 +3,38 @@ from queue import Queue
 import subprocess
 import threading
 
+from rcon.rcon import execute, resolve_address
 
 def execute_rcon(ip_address, port, password, command, queue):
-    cmd = f"python ./rcon/rcon.py -i {ip_address} -p {port} -P {password} {command}"
-    logging.info(f"Executing command: {command}")
+    # cmd = f"python ./rcon/rcon.py -i {ip_address} -p {port} -P {password} {command}"
+    # logging.info(f"Executing command: {command}")
 
+    # try:
+    #     output = subprocess.check_output(
+    #         cmd, shell=True, stderr=subprocess.STDOUT
+    #     )
+    #     # logging.info(f"Command Output: {output.decode('utf-8')}")
+    #     queue.put(output.decode("utf-8").strip())
+    # except subprocess.CalledProcessError as e:
+    #     error_output = e.output.decode("utf-8")
+    #     # logging.error(f"Error executing command: {error_output}")
+    #     queue.put(error_output.strip())
     try:
-        output = subprocess.check_output(
-            cmd, shell=True, stderr=subprocess.STDOUT
-        )
-        # logging.info(f"Command Output: {output.decode('utf-8')}")
-        queue.put(output.decode("utf-8").strip())
-    except subprocess.CalledProcessError as e:
-        error_output = e.output.decode("utf-8")
-        # logging.error(f"Error executing command: {error_output}")
-        queue.put(error_output.strip())
+        resolved_ip = resolve_address(ip_address)
+        info = f"Resolved IP: {resolved_ip}"
+        logging.info(info)
+    except ValueError as e:
+        info = f"Error: {e}"
+        logging.info(info)
+    info = f"Executing command: {command}"
+    logging.info(info)
+    host_port = f"{resolved_ip}:{port}"
+    result = execute(host_port, password, command)
+    info = f"Command Output: {result}"
+    logging.info(info)
+    if result:
+        queue.put(result.strip())
+
         
         
 def rcon_broadcast(ip_address, port, password, message) -> dict:
@@ -31,7 +48,8 @@ def rcon_broadcast(ip_address, port, password, message) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    logging.info(f"RCON Broadcast Result: {result}")
+    info = f"RCON Broadcast Result: {result}"
+    logging.info(info)
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
@@ -44,6 +62,7 @@ def rcon_broadcast(ip_address, port, password, message) -> dict:
 
 
 def rcon_connect(ip_address, port, password) -> dict:
+    """Connect to the RCON server and retrieve the server name and version."""
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
@@ -54,7 +73,8 @@ def rcon_connect(ip_address, port, password) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    logging.info(f"RCON Connection Result: {result}")
+    info = f"RCON Connection Result: {result}"
+    logging.info(info)
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
@@ -80,6 +100,7 @@ def rcon_connect(ip_address, port, password) -> dict:
     return reply
 
 def rcon_fetch_players(ip_address, port, password) -> dict:
+    """Fetch the list of players currently connected to the server."""
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
@@ -91,7 +112,8 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
     # Retrieve the result from the queue
     result = result_queue.get()
     reply = {}
-    logging.info(f"RCON Fetch Players Result: {result}")
+    info = f"RCON Fetch Players Result: {result}"
+    logging.info(info)
     
     # Use first line of result to determine if the command was successful, expect "name,playeruid,steamid"
     if "name,playeruid,steamid" in result:
@@ -127,6 +149,7 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
 
 
 def rcon_kick_player(ip_address, port, password, player_steamid) -> dict:
+    """Kick the player with the specified SteamID from the server."""
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
@@ -137,7 +160,8 @@ def rcon_kick_player(ip_address, port, password, player_steamid) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    logging.info(f"RCON Kick Player Result: {result}")
+    info = f"RCON Kick Player Result: {result}"
+    logging.info(info)
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
@@ -153,6 +177,7 @@ def rcon_kick_player(ip_address, port, password, player_steamid) -> dict:
 
 
 def rcon_ban_player(ip_address, port, password, player_steamid) -> dict:
+    """Ban the player with the specified SteamID from the server."""
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
@@ -163,7 +188,8 @@ def rcon_ban_player(ip_address, port, password, player_steamid) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    logging.info(f"RCON Ban Player Result: {result}")
+    info = f"RCON Ban Player Result: {result}"
+    logging.info(info)
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"

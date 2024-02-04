@@ -2,8 +2,6 @@ from flask import (
     Blueprint,
     render_template,
     request,
-    redirect,
-    url_for,
     jsonify,
 )
 
@@ -15,10 +13,16 @@ from rcon import (
     rcon_ban_player,
 )
 
-from ui import close_browser, minimize_browser
+# from ui import close_browser, minimize_browser
+import settings as s
+
+default_values = s.default_values
+descriptions = s.descriptions
+default_settings_string = s.default_settings_string
 
 
 def check_headers() -> dict:
+    """Check the headers to determine if the request is coming from a WebView2 browser."""
     if "WebView2" in request.headers["Sec-Ch-Ua"]:
         webview_headers = {"webview": True}
     else:
@@ -32,24 +36,60 @@ views = Blueprint("views", __name__)
 # Define a simple route
 @views.route("/")
 def home():
+    """Render the home page."""
     webview_headers = check_headers()
     return render_template("home.html", webview_headers=webview_headers)
 
 
 @views.route("/loadrcon")
 def loadrcon():
+    """Render the RCON loader page."""
     webview_headers = check_headers()
     return render_template("rcon_loader.html", webview_headers=webview_headers)
 
 
 @views.route("/rcon")
 def rcon():
+    """Render the RCON page."""
     webview_headers = check_headers()
     return render_template("rcon.html", webview_headers=webview_headers)
 
 
+@views.route("/settingsgen", methods=["GET", "POST"])
+def settingsgen():
+    """Render the settingsgen page."""
+    webview_headers = check_headers()
+    if request.method == "POST":
+        # Construct the string from the form data
+        settings = ["[/Script/Pal.PalGameWorldSettings]\nOptionSettings=("]
+        for key in default_values.keys():
+            value = request.form.get(key, default_values[key])
+            settings.append(f"{key}={value},")
+        settings_string = (
+            "".join(settings)[:-1] + ")"
+        )  # Remove last comma and close parenthesis
+
+        return render_template(
+            "settings_gen.html",
+            defaults=default_values,
+            descriptions=descriptions,
+            settings_string=settings_string,
+            webview_headers=webview_headers,
+        )
+
+    # Initial page load
+    return render_template(
+        "settings_gen.html",
+        defaults=default_values,
+        descriptions=descriptions,
+        settings_string=default_settings_string,
+        webview_headers=webview_headers,
+    )
+
+
 @views.route("/connect", methods=["POST"])
 def connect():
+    """Connect to the RCON server."""
     data = request.json
     ip_address = data["ip"]
     port = data["port"]
@@ -61,6 +101,7 @@ def connect():
 
 @views.route("/broadcast", methods=["POST"])
 def broadcast():
+    """Broadcast a message to the server."""
     data = request.json
     ip_address = data["ip"]
     port = data["port"]
@@ -73,6 +114,7 @@ def broadcast():
 
 @views.route("/getplayers", methods=["POST"])
 def getplayers():
+    """Get the list of players on the server."""
     data = request.json
     ip_address = data["ip"]
     port = data["port"]
@@ -84,6 +126,7 @@ def getplayers():
 
 @views.route("/kickplayer", methods=["POST"])
 def kickplayer():
+    """Kick a player from the server."""
     data = request.json
     ip_address = data["ip"]
     port = data["port"]
@@ -96,6 +139,7 @@ def kickplayer():
 
 @views.route("/banplayer", methods=["POST"])
 def banplayer():
+    """Ban a player from the server."""
     data = request.json
     ip_address = data["ip"]
     port = data["port"]
@@ -108,11 +152,13 @@ def banplayer():
 
 @views.route("/close")
 def close():
-    close_browser()
+    """Close the webview browser window."""
+    s.browser.close_browser()
     return "", 204
 
 
 @views.route("/minimize")
 def minimize():
-    minimize_browser()
+    """Minimize the webview browser window."""
+    s.browser.minimize_browser()
     return "", 204

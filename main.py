@@ -4,8 +4,9 @@ It launches the Flask app and then the UI for the app. """
 import logging
 import threading
 
-from ui import open_browser
 from waitress import serve
+
+import settings as s
 from website import app, download_templates, download_static_files
 
 
@@ -16,11 +17,10 @@ logging.basicConfig(
 
 USE_REMOTEL_FILES = True
 
-logging.info(f"USE_REMOTEL_FILES: {USE_REMOTEL_FILES}")
-
 
 # Serve the Flask app with Waitress
 def run_flask_app():
+    """Run the Flask app with Waitress."""
     serve(app, host="0.0.0.0", port=8210)
 
 
@@ -31,9 +31,7 @@ def launch():
     flask_thread.daemon = True
     flask_thread.start()
 
-    # Run the UI app
-    if __name__ == "__main__":
-        open_browser()
+    s.browser.open_browser()
 
 
 # Run the app

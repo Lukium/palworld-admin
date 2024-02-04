@@ -242,9 +242,9 @@ def start(host_port, password):
                     print(colorize(data))
                 except EOFError:
                     break
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     print(f"Failed to read command: {e}", file=sys.stderr)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"Failed to connect to RCON server: {e}", file=sys.stderr)
 
 
@@ -280,8 +280,9 @@ def execute(host_port, password, *commands):
                 )
 
             print(colorize(data))
-    except Exception as e:
-        print(f"Failed to execute command: {e}", file=sys.stderr)
+            return data
+    except Exception as e:  # pylint: disable=broad-except
+        return f"Failed to execute command: {e}"
 
 
 def resolve_address(ip_or_domain):
@@ -302,8 +303,10 @@ def resolve_address(ip_or_domain):
         try:
             ip = socket.gethostbyname(ip_or_domain)
             return ip
-        except socket.gaierror:
-            raise ValueError(f"Could not resolve domain: {ip_or_domain}")
+        except socket.gaierror as exc:
+            raise ValueError(
+                f"Could not resolve domain: {ip_or_domain}"
+            ) from exc
 
     # If neither, raise an error
     else:
