@@ -1,5 +1,13 @@
 # Palworld Dedicated Server Tools
 
+## How to run directly from the code:
+- Install python, at least 3.11
+- Install poetry `pip install poetry` make sure you add it to your PATH
+- Download the code to a directory
+- From that directory run `poetry install`
+- Then run `poetry run python main.py`
+- Profit
+
 ## How to transition from an existing server:
 - **MAKE A BACKUP**
 - Download the newest version of the app
