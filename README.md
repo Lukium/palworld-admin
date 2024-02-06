@@ -1,7 +1,6 @@
-# palworld-servertools
-Palworld Dedicated Server Tools
+# Palworld Dedicated Server Tools
 
-### How to transition from an existing server:
+## How to transition from an existing server:
 - **MAKE A BACKUP**
 - Download the newest version of the app
 - Got to Local Server Manager in the main menu
