@@ -9,12 +9,17 @@ import os
 from flask import Flask, Response, abort, send_file, request
 from jinja2 import BaseLoader, TemplateNotFound
 import requests
+from waitress import serve
 
 import settings as s
-from .views import views
 from converter.convert import convert_json_to_sav
 
-app = Flask(__name__, static_folder=None)
+from .views import views
+
+if not s.DEV_MODE:
+    app = Flask(__name__, static_folder=None)
+else:
+    app = Flask(__name__)
 app.register_blueprint(views, url_prefix="/")
 
 
@@ -26,6 +31,7 @@ TEMPLATES = [
     "home.html",
     "rcon_loader.html",
     "rcon.html",
+    "server_installer.html",
     "settings_gen.html",
 ]
 STATIC_FILES = [
@@ -47,6 +53,12 @@ class InMemoryLoader(BaseLoader):
             )  # lambda: True for auto-reloading
         else:
             raise TemplateNotFound(template)
+
+
+# Serve the Flask app with Waitress
+def flask_app():
+    """Run the Flask app with Waitress."""
+    serve(app, host="0.0.0.0", port=8210)
 
 
 # Download templates at startup
@@ -92,20 +104,22 @@ def download_static_files():
             logging.error(error_message)
 
 
-@app.route("/static/<path:filename>")
-def static(filename):
-    """Serve static files from memory."""
-    file_path = f"/static/{filename}"
-    info = f"Requested static file: {file_path}"
-    logging.info(info)
-    if file_path in static_files_in_memory:
-        content = static_files_in_memory[file_path]
-        # Use the mimetypes module to guess the correct MIME type
-        mimetype, _ = guess_type(filename)
-        mimetype = mimetype or "application/octet-stream"
-        return Response(content, mimetype=mimetype)
-    else:
-        abort(404)
+if not s.DEV_MODE:
+
+    @app.route("/static/<path:filename>")
+    def static(filename):
+        """Serve static files from memory."""
+        file_path = f"/static/{filename}"
+        info = f"Requested static file: {file_path}"
+        logging.info(info)
+        if file_path in static_files_in_memory:
+            content = static_files_in_memory[file_path]
+            # Use the mimetypes module to guess the correct MIME type
+            mimetype, _ = guess_type(filename)
+            mimetype = mimetype or "application/octet-stream"
+            return Response(content, mimetype=mimetype)
+        else:
+            abort(404)
 
 
 @app.route("/generate_sav", methods=["POST"])

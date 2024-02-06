@@ -4,9 +4,8 @@ import webview
 class BrowserManager:
     """Class to manage the webview browser window. This class is used to open, close, and minimize the browser window."""
 
-    def __init__(self, iconpath="ui/icon.png"):
+    def __init__(self):
         self.window = None
-        self.iconpath = iconpath
 
     def open_browser(self):
         """Open the webview browser window."""
@@ -14,7 +13,7 @@ class BrowserManager:
         self.window = webview.create_window(
             "Palworld Dedicated Server Tools",
             url=url,
-            width=800,
+            width=820,
             height=1000,
             resizable=False,
             fullscreen=False,

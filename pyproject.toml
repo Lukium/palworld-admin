@@ -13,6 +13,7 @@ waitress = "^2.1.2"
 pywebview = "^4.4.1"
 requests = "^2.31.0"
 pillow = "^10.2.0"
+pyjwt = "^2.8.0"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.3.0"

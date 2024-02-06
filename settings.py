@@ -1,7 +1,19 @@
 """ This module contains the default values and descriptions for the server settings. """
 
+import logging
+
 from ui import BrowserManager
 
+DEV_MODE = False
+WINDOWS_PALWORLD_SETTINGS_INI_PATH = "steamcmd/steamapps/common/PalServer/Pal/Saved/Config/WindowsServer/PalWorldSettings.ini"
+LINUX_PALWORLD_SETTINGS_INI_PATH = "steamcmd/steamapps/common/PalServer/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+server_os = ""
 browser = BrowserManager()
 
 default_values = {

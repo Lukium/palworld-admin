@@ -13,6 +13,14 @@ from rcon import (
     rcon_ban_player,
 )
 
+from installer import (
+    check_install,
+    install_server,
+    first_run,
+    run_server,
+    update_palworld_settings_ini,
+)
+
 # from ui import close_browser, minimize_browser
 import settings as s
 
@@ -53,6 +61,33 @@ def rcon():
     """Render the RCON page."""
     webview_headers = check_headers()
     return render_template("rcon.html", webview_headers=webview_headers)
+
+
+@views.route("/server-installer")
+def server_installer():
+    """Render the server installer page."""
+    webview_headers = check_headers()
+    return render_template(
+        "server_installer.html", webview_headers=webview_headers
+    )
+
+
+@views.route("/server-installer-cmd", methods=["POST"])
+def server_installer_cmd():
+    """Run the server installer commands."""
+    # Get the command from the form data
+    data = request.json
+    if data["function"] == "check_install":
+        result = check_install()
+    elif data["function"] == "install_server":
+        result = install_server()
+    elif data["function"] == "start_server":
+        result = run_server(data["launcher"])
+    elif data["function"] == "first_run":
+        result = first_run()
+    elif data["function"] == "update_settings":
+        result = update_palworld_settings_ini(data["settings"])
+    return jsonify(result)
 
 
 @views.route("/settingsgen", methods=["GET", "POST"])

@@ -202,3 +202,53 @@ def rcon_ban_player(ip_address, port, password, player_steamid) -> dict:
         reply["message"] = "Player banned successfully"
 
     return reply
+
+
+def rcon_save(ip_address, port, password) -> dict:
+    """Save the server state."""
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, "Save", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    info = f"RCON Save Result: {result}"
+    logging.info(info)
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Save Error"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Server state saved successfully"
+
+    return reply
+
+
+def rcon_doexit(ip_address, port, password) -> dict:
+    """Shutdown the server."""
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, "DoExit", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    info = f"RCON DoExit Result: {result}"
+    logging.info(info)
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Shutdown Error"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Server shutdown initiated successfully"
+
+    return reply
