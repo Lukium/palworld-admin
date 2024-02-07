@@ -1,149 +1,157 @@
 """ This module contains the default values and descriptions for the server settings. """
 
+import multiprocessing
 import logging
+import os
+import platform
+import sys
 
+from classes import PalWorldSettings, LocalServer, MemoryStorage
 from ui import BrowserManager
 
-DEV_MODE = False
-WINDOWS_PALWORLD_SETTINGS_INI_PATH = "steamcmd/steamapps/common/PalServer/Pal/Saved/Config/WindowsServer/PalWorldSettings.ini"
-LINUX_PALWORLD_SETTINGS_INI_PATH = "steamcmd/steamapps/common/PalServer/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"
+# from website import download_templates, download_static_files
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+WINDOWS_STEAMCMD_PATH = "steamcmd/steamcmd.exe"
+LINUX_STEAMCMD_PATH = "/usr/games/steamcmd"
 
-server_os = ""
-browser = BrowserManager()
+BASE_LAUNCHER_PATH = "steamcmd/steamapps/common/PalServer/"
+WINDOWS_LAUNCHER_FILE = "PalServer.exe"
+LINUX_LAUNCHER_FILE = "PalServer.sh"
 
-default_values = {
-    "Difficulty": "None",
-    "DayTimeSpeedRate": "1.000000",
-    "NightTimeSpeedRate": "1.000000",
-    "ExpRate": "1.000000",
-    "PalCaptureRate": "1.000000",
-    "PalSpawnNumRate": "1.000000",
-    "PalDamageRateAttack": "1.000000",
-    "PalDamageRateDefense": "1.000000",
-    "PlayerDamageRateAttack": "1.000000",
-    "PlayerDamageRateDefense": "1.000000",
-    "PlayerStomachDecreaceRate": "1.000000",
-    "PlayerStaminaDecreaceRate": "1.000000",
-    "PlayerAutoHPRegeneRate": "1.000000",
-    "PlayerAutoHpRegeneRateInSleep": "1.000000",
-    "PalStomachDecreaceRate": "1.000000",
-    "PalStaminaDecreaceRate": "1.000000",
-    "PalAutoHPRegeneRate": "1.000000",
-    "PalAutoHpRegeneRateInSleep": "1.000000",
-    "BuildObjectDamageRate": "1.000000",
-    "BuildObjectDeteriorationDamageRate": "1.000000",
-    "CollectionDropRate": "1.000000",
-    "CollectionObjectHpRate": "1.000000",
-    "CollectionObjectRespawnSpeedRate": "1.000000",
-    "EnemyDropItemRate": "1.000000",
-    "DeathPenalty": "All",
-    "bEnablePlayerToPlayerDamage": "False",
-    "bEnableFriendlyFire": "False",
-    "bEnableInvaderEnemy": "True",
-    "bActiveUNKO": "False",
-    "bEnableAimAssistPad": "True",
-    "bEnableAimAssistKeyboard": "False",
-    "DropItemMaxNum": "3000",
-    "DropItemMaxNum_UNKO": "100",
-    "BaseCampMaxNum": "128",
-    "BaseCampWorkerMaxNum": "15",
-    "DropItemAliveMaxHours": "1.000000",
-    "bAutoResetGuildNoOnlinePlayers": "False",
-    "AutoResetGuildTimeNoOnlinePlayers": "72.000000",
-    "GuildPlayerMaxNum": "20",
-    "PalEggDefaultHatchingTime": "72.000000",
-    "WorkSpeedRate": "1.000000",
-    "bIsMultiplay": "False",
-    "bIsPvP": "False",
-    "bCanPickupOtherGuildDeathPenaltyDrop": "False",
-    "bEnableNonLoginPenalty": "True",
-    "bEnableFastTravel": "True",
-    "bIsStartLocationSelectByMap": "True",
-    "bExistPlayerAfterLogout": "False",
-    "bEnableDefenseOtherGuildPlayer": "False",
-    "CoopPlayerMaxNum": "4",
-    "ServerPlayerMaxNum": "32",
-    "ServerName": '"Default Palworld Server"',
-    "ServerDescription": '""',
-    "AdminPassword": '""',
-    "ServerPassword": '""',
-    "PublicPort": "8211",
-    "PublicIP": '""',
-    "RCONEnabled": "False",
-    "RCONPort": "25575",
-    "Region": '""',
-    "bUseAuth": "True",
-    "BanListURL": '"https://api.palworldgame.com/api/banlist.txt"',
-}
+PALWORLDSETTINGS_INI_BASE_PATH = f"{BASE_LAUNCHER_PATH}Pal/Saved/Config/"
+PALWORLDSETTINGS_INI_FILE = "PalWorldSettings.ini"
+DEFAULTPALWORLDSETTINGS_INI_FILE = "DefaultPalWorldSettings.ini"
 
-descriptions = {
-    "Difficulty": "Adjusts the overall difficulty of the game.",
-    "DayTimeSpeedRate": "Modifies the speed of in-game time during the day.",
-    "NightTimeSpeedRate": "Modifies the speed of in-game time during the night.",
-    "ExpRate": "Changes the experience gain rate for both players and creatures.",
-    "PalCaptureRate": "Adjusts the rate at which Pal creatures can be captured.",
-    "PalSpawnNumRate": "Adjusts the rate at which Pal creatures spawn.",
-    "PalDamageRateAttack": "Fine-tunes Pal creature damage dealt.",
-    "PalDamageRateDefense": "Fine-tunes Pal creature damage received.",
-    "PlayerDamageRateAttack": "Fine-tunes player damage dealt.",
-    "PlayerDamageRateDefense": "Fine-tunes player damage received.",
-    "PlayerStomachDecreaseRate": "Adjusts the rate at which the player's stomach decreases.",
-    "PlayerStaminaDecreaseRate": "Adjusts the rate at which the player's stamina decreases.",
-    "PlayerAutoHPRegeneRate": "Adjusts the rate of automatic player health regeneration.",
-    "PlayerAutoHpRegeneRateInSleep": "Adjusts the rate of automatic player health regeneration during sleep.",
-    "PalStomachDecreaseRate": "Adjusts the rate at which Pal creature stomach decreases.",
-    "PalStaminaDecreaseRate": "Adjusts the rate at which Pal creature stamina decreases.",
-    "PalAutoHPRegeneRate": "Adjusts the rate of automatic Pal creature health regeneration.",
-    "PalAutoHpRegeneRateInSleep": "Adjusts the rate of automatic Pal creature health regeneration during sleep.",
-    "BuildObjectDamageRate": "Adjusts the rate at which built objects take damage.",
-    "BuildObjectDeteriorationDamageRate": "Adjusts the rate at which built objects deteriorate.",
-    "CollectionDropRate": "Adjusts the drop rate of collected items.",
-    "CollectionObjectHpRate": "Adjusts the health of collected objects.",
-    "CollectionObjectRespawnSpeedRate": "Adjusts the respawn speed of collected objects.",
-    "EnemyDropItemRate": "Adjusts the drop rate of items from defeated enemies.",
-    "DeathPenalty": "Defines the penalty upon player death (e.g., All, None).",
-    "bEnablePlayerToPlayerDamage": "Enables or disables player-to-player damage.",
-    "bEnableFriendlyFire": "Enables or disables friendly fire.",
-    "bEnableInvaderEnemy": "Enables or disables invader enemies.",
-    "bActiveUNKO": "Activates or deactivates UNKO (Unidentified Nocturnal Knock-off).",
-    "bEnableAimAssistPad": "Enables or disables aim assist for controllers.",
-    "bEnableAimAssistKeyboard": "Enables or disables aim assist for keyboards.",
-    "DropItemMaxNum": "Sets the maximum number of dropped items in the game.",
-    "DropItemMaxNum_UNKO": "Sets the maximum number of dropped UNKO items in the game.",
-    "BaseCampMaxNum": "Sets the maximum number of base camps that can be built.",
-    "BaseCampWorkerMaxNum": "Sets the maximum number of workers in a base camp.",
-    "DropItemAliveMaxHours": "Sets the maximum time items remain alive after being dropped.",
-    "bAutoResetGuildNoOnlinePlayers": "Automatically resets guilds with no online players.",
-    "AutoResetGuildTimeNoOnlinePlayers": "Sets the time after which guilds with no online players are automatically reset.",
-    "GuildPlayerMaxNum": "Sets the maximum number of players in a guild.",
-    "PalEggDefaultHatchingTime": "Sets the default hatching time for Pal eggs.",
-    "WorkSpeedRate": "Adjusts the overall work speed in the game.",
-    "bIsMultiplay": "Enables or disables multiplayer mode.",
-    "bIsPvP": "Enables or disables player versus player (PvP) mode.",
-    "bCanPickupOtherGuildDeathPenaltyDrop": "Enables or disables the pickup of death penalty drops from other guilds.",
-    "bEnableNonLoginPenalty": "Enables or disables non-login penalties.",
-    "bEnableFastTravel": "Enables or disables fast travel.",
-    "bIsStartLocationSelectByMap": "Enables or disables the selection of starting locations on the map.",
-    "bExistPlayerAfterLogout": "Enables or disables the existence of players after logout.",
-    "bEnableDefenseOtherGuildPlayer": "Enables or disables the defense of other guild players.",
-    "CoopPlayerMaxNum": "Sets the maximum number of cooperative players in a session.",
-    "ServerPlayerMaxNum": "Sets the maximum number of players allowed on the server.",
-    "ServerName": "Sets the name of the Palworld server.",
-    "ServerDescription": "Provides a description for the Palworld server.",
-    "AdminPassword": "Sets the password for server administration.",
-    "ServerPassword": "Sets the password for joining the Palworld server.",
-    "PublicPort": "Sets the public port for the Palworld server.",
-    "PublicIP": "Sets the public IP address for the Palworld server.",
-    "RCONEnabled": "Enables or disables Remote Console (RCON) for server administration.",
-    "RCONPort": "Sets the port for Remote Console (RCON) communication.",
-    "Region": "Sets the region for the Palworld server.",
-    "bUseAuth": "Enables or disables server authentication.",
-    "BanListURL": "Sets the URL for the server's ban list.",
-}
+BASE_URL = "https://palworld-servertools.lukium.ai"
+TEMPLATES = [
+    "base.html",
+    "home.html",
+    "rcon_loader.html",
+    "rcon.html",
+    "server_installer.html",
+    "settings_gen.html",
+]
+STATIC_FILES = [
+    "images/palworld-logo.png",
+]
 
-default_settings_string = '[/Script/Pal.PalGameWorldSettings]\nOptionSettings=(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName="Default Palworld Server",ServerDescription="",AdminPassword="",ServerPassword="",PublicPort=8211,PublicIP="",RCONEnabled=False,RCONPort=25575,Region="",bUseAuth=True,BanListURL="https://api.palworldgame.com/api/banlist.txt")'
+
+class Settings:
+    """Class to manage the settings for the server.
+    This class is used to store and manage the server settings."""
+
+    def __init__(self):
+        self.dev: bool = False
+        self.app_os = ""
+        self.server_os = ""
+        self.main_ui = BrowserManager()
+
+        self.palworldsettings_defaults = PalWorldSettings()
+        self.localserver = LocalServer()
+        self.memorystorage = MemoryStorage(BASE_URL, TEMPLATES, STATIC_FILES)
+
+        self.pyinstaller_mode: bool = False
+
+        self.working_server = ""
+
+        self.set_logging()
+        self.set_app_os()
+        self.set_pyinstaller_mode()
+        self.enable_multiprocessing_freeze_support()
+        self.set_local_server_paths()
+        self.download_ui()
+
+    def set_logging(self):
+        """Set the logging configuration."""
+        if self.dev:
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format="%(asctime)s - %(levelname)s - %(message)s",
+            )
+        else:
+            logging.basicConfig(
+                level=logging.INFO,
+                format="%(asctime)s - %(levelname)s - %(message)s",
+            )
+
+    def set_pyinstaller_mode(self):
+        """Set the pyinstaller mode based on the current environment."""
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            self.pyinstaller_mode = True
+        else:
+            self.pyinstaller_mode = False
+
+    def enable_multiprocessing_freeze_support(self):
+        """Enable multiprocessing.freeze_support()
+        if the application is running in pyinstaller mode."""
+        if self.pyinstaller_mode:
+            multiprocessing.freeze_support()
+            logging.info("Multiprocessing freeze support enabled.")
+
+    def set_local_server_paths(self):
+        """Set the paths for the local server based on the current environment."""
+        if self.pyinstaller_mode:
+            exe_path = os.path.dirname(sys.executable)
+        else:
+            exe_path = os.getcwd()
+        windows_or_linux = "Windows" if self.app_os == "Windows" else "Linux"
+        # Set the launcher path and steamcmd path based on the operating system
+        if windows_or_linux == "Windows":
+            self.localserver.launcher_path = os.path.join(
+                exe_path, BASE_LAUNCHER_PATH, WINDOWS_LAUNCHER_FILE
+            )
+            self.localserver.steamcmd_path = os.path.join(
+                exe_path, WINDOWS_STEAMCMD_PATH
+            )
+        else:
+            self.localserver.launcher_path = os.path.join(
+                exe_path, BASE_LAUNCHER_PATH, LINUX_LAUNCHER_FILE
+            )
+            self.localserver.steamcmd_path = LINUX_STEAMCMD_PATH
+        # Set the default PalWorldSettings.ini path based on the operating system
+        self.localserver.default_ini_path = os.path.join(
+            exe_path,
+            BASE_LAUNCHER_PATH,
+            DEFAULTPALWORLDSETTINGS_INI_FILE,
+        )
+        # Set the PalWorldSettings.ini path based on the operating system
+        self.localserver.ini_path = os.path.join(
+            exe_path,
+            PALWORLDSETTINGS_INI_BASE_PATH,
+            f"{windows_or_linux}Server",
+            PALWORLDSETTINGS_INI_FILE,
+        )
+        logging.info(
+            "Local server steamcmd path: %s", self.localserver.steamcmd_path
+        )
+        logging.info(
+            "Local server launcher path: %s", self.localserver.launcher_path
+        )
+        logging.info("Local server ini path: %s", self.localserver.ini_path)
+
+    def set_app_os(self):
+        """Set the operating system of the application based on the current environment."""
+        result = platform.system()
+        if result == "Windows":
+            self.app_os = "Windows"
+        elif result == "Linux":
+            self.app_os = "Linux"
+        elif result == "Darwin":
+            self.app_os = "Mac"
+        else:
+            raise ValueError("Unknown operating system.")
+        logging.info("Application OS: %s", self.app_os)
+
+    def set_working_server(self, local_or_remote: str):
+        """Set the working server to either local or remote."""
+        self.working_server = local_or_remote
+        logging.info("Working server: %s", self.working_server)
+
+    def download_ui(self):
+        """Download the UI files if necessary."""
+        if not self.dev:
+            self.memorystorage.download_static_files()
+            self.memorystorage.download_templates()
+
+
+app_settings = Settings()

@@ -12,10 +12,10 @@ SECTION_SIGN = "§"
 RESET = "\u001B[0m"
 
 # Regex for IPv4 addresses
-ipv4_pattern = r"^(\d{1,3}\.){3}\d{1,3}$"
+IPV4_PATTERN = r"^(\d{1,3}\.){3}\d{1,3}$"
 
 # Regex for domain names (simplified version)
-domain_pattern = r"^([a-z0-9]+(-[a-z0-9]+)*\.)+([a-z]{2,})$"
+DOMAIN_PATTERN = r"^([a-z0-9]+(-[a-z0-9]+)*\.)+([a-z]{2,})$"
 
 colors = {
     "0": "\u001B[30m",  # black
@@ -269,6 +269,16 @@ def execute(host_port, password, *commands):
             parts[0] + " " + parts[1].replace(" ", "\x1F")
         )  # Replace spaces in the message
 
+    # If the command starts with 'shutdown',
+    # replace all spaces after the second with a unit separator
+    if command.lower().startswith("shutdown"):
+        parts = command.split(
+            " ", 2
+        )  # Split into 'shutdown', 'delay', and 'message'
+        command = (
+            parts[0] + " " + parts[1] + " " + parts[2].replace(" ", "\x1F")
+        )  # Replace spaces in the message
+
     try:
         with RemoteConsole(host, port, password) as remote_console:
             req_id = remote_console.write(command)
@@ -279,7 +289,7 @@ def execute(host_port, password, *commands):
                     file=sys.stderr,
                 )
 
-            print(colorize(data))
+            # print(colorize(data))
             return data
     except Exception as e:  # pylint: disable=broad-except
         return f"Failed to execute command: {e}"
@@ -295,11 +305,11 @@ def resolve_address(ip_or_domain):
         str: The IP address if resolution is successful or the original IP if already an IP address.
     """
     # Check if the input is an IPv4 address
-    if re.match(ipv4_pattern, ip_or_domain, re.IGNORECASE):
+    if re.match(IPV4_PATTERN, ip_or_domain, re.IGNORECASE):
         return ip_or_domain  # It's already an IP address, return as is
 
     # Check if the input is a domain name (including subdomains)
-    elif re.match(domain_pattern, ip_or_domain, re.IGNORECASE):
+    elif re.match(DOMAIN_PATTERN, ip_or_domain, re.IGNORECASE):
         try:
             ip = socket.gethostbyname(ip_or_domain)
             return ip

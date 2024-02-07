@@ -1,8 +1,11 @@
+"""This module contains the BrowserManager class."""
+
 import webview
 
 
 class BrowserManager:
-    """Class to manage the webview browser window. This class is used to open, close, and minimize the browser window."""
+    """Class to manage the webview browser window.
+    This class is used to open, close, and minimize the browser window."""
 
     def __init__(self):
         self.window = None

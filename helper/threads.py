@@ -1,3 +1,5 @@
+"""Helper functions for working with threads."""
+
 import threading
 
 

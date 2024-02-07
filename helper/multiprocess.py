@@ -1,3 +1,5 @@
+"""Helper functions for running functions on separate processes."""
+
 import multiprocessing
 
 

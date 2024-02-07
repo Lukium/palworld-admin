@@ -1,8 +1,9 @@
 """This module contains helper functions for networking tasks."""
 
 import logging
-import requests
 import socket
+
+import requests
 
 
 def get_public_ip():

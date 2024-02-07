@@ -1,3 +1,7 @@
+"""Define the routes for the website."""
+
+import logging
+
 from flask import (
     Blueprint,
     render_template,
@@ -11,9 +15,11 @@ from rcon import (
     rcon_fetch_players,
     rcon_kick_player,
     rcon_ban_player,
+    rcon_save,
+    rcon_shutdown,
 )
 
-from installer import (
+from servermanager.local import (
     check_install,
     install_server,
     first_run,
@@ -22,11 +28,14 @@ from installer import (
 )
 
 # from ui import close_browser, minimize_browser
-import settings as s
+# import settings as s
+from settings import app_settings
 
-default_values = s.default_values
-descriptions = s.descriptions
-default_settings_string = s.default_settings_string
+DEFAULT_VALUES: dict = app_settings.palworldsettings_defaults.default_values
+DESCRIPTIONS: dict = app_settings.palworldsettings_defaults.descriptions
+DEFAULT_SETTINGS_STRING: str = (
+    app_settings.palworldsettings_defaults.default_settings_string
+)
 
 
 def check_headers() -> dict:
@@ -38,6 +47,19 @@ def check_headers() -> dict:
     return webview_headers
 
 
+def go_to(url: str):
+    """Open the webview browser window to the specified URL."""
+    headers = check_headers()
+
+    if app_settings.dev:
+        return render_template(url, webview_headers=headers)
+    else:
+        if headers["webview"]:
+            return render_template(url, webview_headers=headers)
+        else:
+            return jsonify({"status": "error", "message": "Permission denied"})
+
+
 views = Blueprint("views", __name__)
 
 
@@ -45,31 +67,25 @@ views = Blueprint("views", __name__)
 @views.route("/")
 def home():
     """Render the home page."""
-    webview_headers = check_headers()
-    return render_template("home.html", webview_headers=webview_headers)
+    return go_to("home.html")
 
 
 @views.route("/loadrcon")
 def loadrcon():
     """Render the RCON loader page."""
-    webview_headers = check_headers()
-    return render_template("rcon_loader.html", webview_headers=webview_headers)
+    return go_to("rcon_loader.html")
 
 
 @views.route("/rcon")
 def rcon():
     """Render the RCON page."""
-    webview_headers = check_headers()
-    return render_template("rcon.html", webview_headers=webview_headers)
+    return go_to("rcon.html")
 
 
 @views.route("/server-installer")
 def server_installer():
     """Render the server installer page."""
-    webview_headers = check_headers()
-    return render_template(
-        "server_installer.html", webview_headers=webview_headers
-    )
+    return go_to("server_installer.html")
 
 
 @views.route("/server-installer-cmd", methods=["POST"])
@@ -94,20 +110,27 @@ def server_installer_cmd():
 def settingsgen():
     """Render the settingsgen page."""
     webview_headers = check_headers()
+    logging.info("Form data: %s \n\n", request.form.to_dict())
     if request.method == "POST":
         # Construct the string from the form data
         settings = ["[/Script/Pal.PalGameWorldSettings]\nOptionSettings=("]
-        for key in default_values.keys():
-            value = request.form.get(key, default_values[key])
+        for (
+            key
+        ) in (
+            DEFAULT_VALUES.keys()  # pylint: disable=consider-iterating-dictionary
+        ):
+            value = request.form.get(key, DEFAULT_VALUES[key])
             settings.append(f"{key}={value},")
         settings_string = (
             "".join(settings)[:-1] + ")"
         )  # Remove last comma and close parenthesis
 
+        logging.info("Settings String: %s", settings_string)
+
         return render_template(
             "settings_gen.html",
-            defaults=default_values,
-            descriptions=descriptions,
+            defaults=DEFAULT_VALUES,
+            descriptions=DESCRIPTIONS,
             settings_string=settings_string,
             webview_headers=webview_headers,
         )
@@ -115,9 +138,9 @@ def settingsgen():
     # Initial page load
     return render_template(
         "settings_gen.html",
-        defaults=default_values,
-        descriptions=descriptions,
-        settings_string=default_settings_string,
+        defaults=DEFAULT_VALUES,
+        descriptions=DESCRIPTIONS,
+        settings_string=DEFAULT_SETTINGS_STRING,
         webview_headers=webview_headers,
     )
 
@@ -185,15 +208,41 @@ def banplayer():
     return jsonify(result)
 
 
+@views.route("/save", methods=["POST"])
+def save():
+    """Save current game state."""
+    data = request.json
+    ip_address = data["ip"]
+    port = data["port"]
+    password = data["password"]
+
+    result = rcon_save(ip_address, port, password)
+    return jsonify(result)
+
+
+@views.route("/shutdown", methods=["POST"])
+def shutdown():
+    """Shutdown the server."""
+    data = request.json
+    ip_address = data["ip"]
+    port = data["port"]
+    password = data["password"]
+    delay = data["delay"]
+    message = data["message"]
+
+    result = rcon_shutdown(ip_address, port, password, delay, message)
+    return jsonify(result)
+
+
 @views.route("/close")
 def close():
     """Close the webview browser window."""
-    s.browser.close_browser()
+    app_settings.main_ui.close_browser()
     return "", 204
 
 
 @views.route("/minimize")
 def minimize():
     """Minimize the webview browser window."""
-    s.browser.minimize_browser()
+    app_settings.main_ui.minimize_browser()
     return "", 204

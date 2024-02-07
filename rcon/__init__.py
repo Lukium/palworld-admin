@@ -1,43 +1,34 @@
+"""RCON Module for handling RCON commands to a DayZ server."""
 import logging
 from queue import Queue
-import subprocess
 import threading
 
 from rcon.rcon import execute, resolve_address
 
-def execute_rcon(ip_address, port, password, command, queue):
-    # cmd = f"python ./rcon/rcon.py -i {ip_address} -p {port} -P {password} {command}"
-    # logging.info(f"Executing command: {command}")
+from settings import app_settings
 
-    # try:
-    #     output = subprocess.check_output(
-    #         cmd, shell=True, stderr=subprocess.STDOUT
-    #     )
-    #     # logging.info(f"Command Output: {output.decode('utf-8')}")
-    #     queue.put(output.decode("utf-8").strip())
-    # except subprocess.CalledProcessError as e:
-    #     error_output = e.output.decode("utf-8")
-    #     # logging.error(f"Error executing command: {error_output}")
-    #     queue.put(error_output.strip())
-    try:
-        resolved_ip = resolve_address(ip_address)
-        info = f"Resolved IP: {resolved_ip}"
-        logging.info(info)
-    except ValueError as e:
-        info = f"Error: {e}"
-        logging.info(info)
-    info = f"Executing command: {command}"
-    logging.info(info)
+def execute_rcon(ip_address, port, password, command, queue) -> None:
+    """Execute the specified RCON command and put the result in the queue."""
+    logging.info("Executing RCON command: %s", command)
+    if not app_settings.localserver.connected:
+        try:
+            resolved_ip = resolve_address(ip_address)
+            app_settings.localserver.ip = resolved_ip
+            logging.info("Resolved IP: %s", resolved_ip)
+        except ValueError as e:
+            logging.info("Error: %s", e)
+    else:
+        resolved_ip = app_settings.localserver.ip
+        logging.info("Using cached IP: %s", resolved_ip)
     host_port = f"{resolved_ip}:{port}"
-    result = execute(host_port, password, command)
-    info = f"Command Output: {result}"
-    logging.info(info)
+    result = execute(host_port, password, command).strip()
+    logging.info("Command Output: %s\n", result)
     if result:
         queue.put(result.strip())
 
-        
-        
+
 def rcon_broadcast(ip_address, port, password, message) -> dict:
+    """Broadcast the specified message to the server."""
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
@@ -92,6 +83,7 @@ def rcon_connect(ip_address, port, password) -> dict:
         reply["server_name"] = "N/A"
         reply["server_version"] = "N/A"
     else:
+        app_settings.localserver.connected = True
         reply["status"] = "success"
         reply["message"] = "Connected to server successfully"
         reply["server_name"] = result.split("]")[1].strip()
@@ -112,10 +104,9 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
     # Retrieve the result from the queue
     result = result_queue.get()
     reply = {}
-    info = f"RCON Fetch Players Result: {result}"
-    logging.info(info)
-    
-    # Use first line of result to determine if the command was successful, expect "name,playeruid,steamid"
+
+    # Use first line of result to determine if the command was successful,
+    # expect "name,playeruid,steamid"
     if "name,playeruid,steamid" in result:
         reply["status"] = "success"
         reply["message"] = "Players fetched successfully"
@@ -143,7 +134,7 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
         reply["status"] = "error"
         reply["message"] = "Connection Error"
         reply["player_count"] = 0
-        reply["players"] = []   
+        reply["players"] = []
 
     return reply
 
@@ -224,8 +215,33 @@ def rcon_save(ip_address, port, password) -> dict:
         reply["message"] = "Save Error"
     else:
         reply["status"] = "success"
-        reply["message"] = "Server state saved successfully"
+        reply["message"] = "Game saved successfully"
 
+    return reply
+
+
+def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
+    """Shutdown the server gracefully with the specified delay and message."""
+    result_queue = Queue()
+    command_thread = threading.Thread(
+        target=execute_rcon,
+        args=(ip_address, port, password, f"Shutdown {delay} {message}", result_queue),
+    )
+    command_thread.start()
+    command_thread.join()  # Wait for the thread to complete
+
+    # Retrieve the result from the queue
+    result = result_queue.get()
+    info = f"RCON Shutdown Result: {result}"
+    logging.info(info)
+    reply = {}
+    if "Failed to execute command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Shutdown Error"
+    else:
+        reply["status"] = "success"
+        reply["message"] = "Server shutdown initiated successfully"
+    
     return reply
 
 
