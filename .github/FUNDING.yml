@@ -10,4 +10,4 @@ liberapay: # Replace with a single Liberapay username
 issuehunt: # Replace with a single IssueHunt username
 otechie: # Replace with a single Otechie username
 lfx_crowdfunding: # Replace with a single LFX Crowdfunding project-name e.g., cloud-foundry
-custom: ['https://discord.com/servers/lukium-swarm-hub-629066705057873922']
+custom: ['https://lukium.com/tip','https://discord.com/servers/lukium-swarm-hub-629066705057873922']
