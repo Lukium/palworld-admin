@@ -1,6 +1,5 @@
 """ This module contains the default values and descriptions for the server settings. """
 
-import multiprocessing
 import logging
 import os
 import platform
@@ -55,9 +54,8 @@ class Settings:
         self.working_server = ""
 
         self.set_logging()
-        self.set_app_os()
         self.set_pyinstaller_mode()
-        self.enable_multiprocessing_freeze_support()
+        self.set_app_os()
         self.set_local_server_paths()
         self.download_ui()
 
@@ -80,13 +78,6 @@ class Settings:
             self.pyinstaller_mode = True
         else:
             self.pyinstaller_mode = False
-
-    def enable_multiprocessing_freeze_support(self):
-        """Enable multiprocessing.freeze_support()
-        if the application is running in pyinstaller mode."""
-        if self.pyinstaller_mode:
-            multiprocessing.freeze_support()
-            logging.info("Multiprocessing freeze support enabled.")
 
     def set_local_server_paths(self):
         """Set the paths for the local server based on the current environment."""

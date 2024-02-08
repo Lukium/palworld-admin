@@ -1,7 +1,6 @@
 """ This file is the entry point for the application.
 It launches the Flask app and then the UI for the app. """
 
-# import settings as s
 from settings import app_settings
 from website import flask_app
 

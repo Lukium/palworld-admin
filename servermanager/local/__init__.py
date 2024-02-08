@@ -36,10 +36,12 @@ def check_steamcmd_install() -> dict:
         if os.path.isfile(app_settings.localserver.steamcmd_path):
             result["status"] = "success"
             result["value"] = True
+            app_settings.localserver.steamcmd_installed = True
             logging.info("SteamCMD reply to UI: %s", result)
         else:
             result["status"] = "success"
             result["value"] = False
+            app_settings.localserver.steamcmd_installed = False
             logging.info("SteamCMD reply to UI: %s", result)
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
@@ -160,7 +162,10 @@ def read_server_settings():
 def install_server() -> dict:
     """Install the server."""
     result = {}
-    steamcmd_result = install_steamcmd()
+    if not app_settings.localserver.steamcmd_installed:
+        steamcmd_result = install_steamcmd()
+    else:
+        steamcmd_result = {"status": "success", "message": "SteamCMD already installed"}
     palserver_result = install_palserver()
     saved_data_result = check_palworld_install()
     result["steamcmd"] = steamcmd_result
@@ -260,40 +265,17 @@ def install_palserver():
         # TODO: Add support for Linux and macOS
         pass
 
-
-# def check_for_saved_data() -> dict:
-#     """Check for saved data."""
-#     result = {}
-#     # Check if steamcmd/steamapps/common/PalServer/Saved path exists
-#     try:
-#         if os.path.isdir("steamcmd/steamapps/common/PalServer/Saved"):
-#             result["status"] = "success"
-#             result["value"] = True
-#             logging.info(result)
-#         else:
-#             result["status"] = "success"
-#             result["value"] = False
-#             logging.info(result)
-#             return result
-#     except Exception as e:  # pylint: disable=broad-except
-#         result["status"] = "error"
-#         result["value"] = "Error checking for saved data."
-#         info = f"Error checking for saved data: {e}"
-#         logging.info(info)
-#         return result
-
-
 def run_server(launcher_args: dict = None):
     """Run the server."""
     result = {}
-    info = f"Running server. Launcher Args: {launcher_args}"
-    logging.info(info)
+    logging.info("Running server. Launcher Args: %s", launcher_args)
     epicapp = launcher_args["epicApp"]
     useperfthreads = launcher_args["useperfthreads"]
     noasyncloadingthread = launcher_args["NoAsyncLoadingThread"]
     usemultithreadfords = launcher_args["UseMultithreadForDS"]
-
-    logging.info(info)
+    launch_RCON = launcher_args["launch_RCON"]
+    auto_backup = launcher_args["auto_backup"]
+    auto_backup_delay = launcher_args["auto_backup_delay"]
     # Construct the command with necessary parameters and flags, add - for all flags except epicapp
     cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}' # pylint: disable=line-too-long
     info = f"Running server. Command: {cmd}"
@@ -455,15 +437,18 @@ def first_run():
         "useperfthreads": False,
         "NoAsyncLoadingThread": False,
         "UseMultithreadForDS": False,
+        "launch_RCON": False,
+        "auto_backup": False,
+        "auto_backup_delay": 0,
     }
-    run_function_on_process(run_server, launcher_args)
+    run_server(launcher_args)
     time.sleep(10)
     identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
     if identified["status"] == "success":
         info = f"Server Process ID: {identified["value"]}"
         logging.info(info)
         pid = identified["value"]
-        logging.info("Giving server 10 seconds to fully start, before shutting it down")
+        logging.info("Giving server 5 seconds to fully start, before shutting it down")
         time.sleep(5)
         terminated = terminate_process_by_pid(pid)
         if terminated:
