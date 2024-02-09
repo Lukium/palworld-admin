@@ -4,14 +4,14 @@
 <details open>
   <summary><b>Server Manager:<b></summary>
 <details open>
-  <summary>🟡 1-Click Installer</summary>
+  <summary>🟢 1-Click Installer</summary>
 - 🟢 Windows<br>
-- ⚪ Linux  
+- 🟢 Linux  
 </details>
 <details open>
-  <summary>🟡 1-Click Launcher</summary>
+  <summary>🟢 1-Click Launcher</summary>
 - 🟢 Windows<br>
-- ⚪ Linux  
+- 🟢 Linux  
 </details>
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
