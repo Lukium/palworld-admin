@@ -64,6 +64,16 @@
 - ⚪ display HEX UID for easy Save Identification
 </details>
 
+## **To access the Remote Server Manager:**
+- Run the binary on your host, make sure port 8210 is open and forwarded
+- Access it with your browser of choice by navigating to http://[HOSTIP]:8210
+
+_Use palworld-server tools binary after `chmod + x`_
+_Make sure to use `-r -mp [management password]` when launching remote management on  Linux_
+
+**Important:**
+The remote manager does not have RCON built in. You still want to use the windows version to access the server managed in Linux via RCON
+
 ## How to run directly from the code:
 - Install python, at least 3.11
 - Install poetry `pip install poetry` make sure you add it to your PATH
