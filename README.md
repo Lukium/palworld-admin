@@ -15,7 +15,7 @@
 </details>
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
-- 🟢 Manual Backup Server Data<br>
+- 🟢 Manually Backup Server Data<br>
 - ⚪ Automatically Backup Server Data<br>
 - ⚪ AutoPrune Server Data (by quantity)<br>
 - ⚪ Restore Server Data from Backup<br>
@@ -46,9 +46,12 @@
     - 🟢 PalWorldSettings.ini<br>
     - 🟢 WorldOption.sav
   </details>
+  <details open>
+    <summary>⚪ Read/Write Directly to Server:</summary>
   - ⚪ Read settings directly from server<br>
   - ⚪ Write settings directly to server<br>
   - ⚪ Server Profile Manager (Store different settings that can be easily swapped)
+  </details>
 </details>
 
 <details open>
@@ -71,7 +74,7 @@
 ## How to transition from an existing server:
 - **MAKE A BACKUP**
 - Download the newest version of the app
-- Got to Local Server Manager in the main menu
+- Go to Local Server Manager in the main menu
 - Click `Install | Update` > `Confirm` > Wait for it to finish
 - Go to your backup and copy the directory:
 `steamapps/common/PalServer/Pal/Saved` **FROM** your backup and overwrite that same directory inside the steamcmd that my app creates
