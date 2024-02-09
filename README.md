@@ -1,5 +1,69 @@
 # Palworld Dedicated Server Tools
 
+## Feature Roadmap
+<details open>
+  <summary><b>Server Manager:<b></summary>
+<details open>
+  <summary>🟡 1-Click Installer</summary>
+- 🟢 Windows<br>
+- ⚪ Linux  
+</details>
+<details open>
+  <summary>🟡 1-Click Launcher</summary>
+- 🟢 Windows<br>
+- ⚪ Linux  
+</details>
+<details open>
+  <summary>🟡 Data Backup & Restore</summary>
+- 🟢 Manually Backup Server Data<br>
+- ⚪ Automatically Backup Server Data<br>
+- ⚪ AutoPrune Server Data (by quantity)<br>
+- ⚪ Restore Server Data from Backup<br>
+</details>
+<details open>
+  <summary>⚪ Server Auto Restart</summary>
+- ⚪ Schedule Based<br>
+- ⚪ RAM Utilization Based<br>
+</details>
+</details>
+
+<details open>
+  <summary>🟢 RCON Client:</summary>
+- 🟢 Connect<br>
+- 🟢 Broadcast Message (Multi Word working)<br>
+- 🟢 List Players<br>
+- 🟢 View SteamID/UID<br>
+- 🟢 Kick Players<br>
+- 🟢 Ban Players<br>
+- 🟢 Save Game<br>
+- 🟢 Shutdown Gracefully
+</details>
+
+<details open>
+  <summary>🟡 Server Settings Manager:</summary>
+  <details open>
+    <summary>🟢 Generate Settings:</summary>
+    - 🟢 PalWorldSettings.ini<br>
+    - 🟢 WorldOption.sav
+  </details>
+  <details open>
+    <summary>⚪ Read/Write Directly to Server:</summary>
+  - ⚪ Read settings directly from server<br>
+  - ⚪ Write settings directly to server<br>
+  - ⚪ Server Profile Manager (Store different settings that can be easily swapped)
+  </details>
+</details>
+
+<details open>
+  <summary>⚪Beyond RCON</summary>
+- ⚪ Whitelist Player<br>
+- ⚪ Whitelist Mode (Only allow whitelisted players to join server)<br>
+- ⚪ Unban Player<br>
+- ⚪ Broadcast player joins in server<br>
+- ⚪ Create RCON Log<br>
+- ⚪ display HEX UID for easy Save Identification
+</details>
+
 ## How to run directly from the code:
 - Install python, at least 3.11
 - Install poetry `pip install poetry` make sure you add it to your PATH
@@ -11,7 +75,7 @@
 ## How to transition from an existing server:
 - **MAKE A BACKUP**
 - Download the newest version of the app
-- Got to Local Server Manager in the main menu
+- Go to Local Server Manager in the main menu
 - Click `Install | Update` > `Confirm` > Wait for it to finish
 - Go to your backup and copy the directory:
 `steamapps/common/PalServer/Pal/Saved` **FROM** your backup and overwrite that same directory inside the steamcmd that my app creates
