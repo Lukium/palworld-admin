@@ -1,5 +1,65 @@
 # Palworld Dedicated Server Tools
 
+## Feature Roadmap
+<details open>
+  <summary><b>Server Manager:<b></summary>
+<details open>
+  <summary>🟡 1-Click Installer</summary>
+- 🟢 Windows<br>
+- ⚪ Linux  
+</details>
+<details open>
+  <summary>🟡 1-Click Launcher</summary>
+- 🟢 Windows<br>
+- ⚪ Linux  
+</details>
+<details open>
+  <summary>🟡 Data Backup & Restore</summary>
+- 🟢 Manual Backup Server Data<br>
+- ⚪ Automatically Backup Server Data<br>
+- ⚪ AutoPrune Server Data (by quantity)<br>
+- ⚪ Restore Server Data from Backup<br>
+</details>
+<details open>
+  <summary>⚪ Server Auto Restart</summary>
+- ⚪ Schedule Based<br>
+- ⚪ RAM Utilization Based<br>
+</details>
+</details>
+
+<details open>
+  <summary>🟢 RCON Client:</summary>
+- 🟢 Connect<br>
+- 🟢 Broadcast Message (Multi Word working)<br>
+- 🟢 List Players<br>
+- 🟢 View SteamID/UID<br>
+- 🟢 Kick Players<br>
+- 🟢 Ban Players<br>
+- 🟢 Save Game<br>
+- 🟢 Shutdown Gracefully
+</details>
+
+<details open>
+  <summary>🟡 Server Settings Manager:</summary>
+  <details open>
+    <summary>🟢 Generate Settings:</summary>
+    - 🟢 PalWorldSettings.ini<br>
+    - 🟢 WorldOption.sav
+  </details>
+  - ⚪ Read settings directly from server<br>
+  - ⚪ Write settings directly to server<br>
+  - ⚪ Server Profile Manager (Store different settings that can be easily swapped)
+</details>
+
+<details open>
+  <summary>⚪Beyond RCON</summary>
+- ⚪ Whitelist Player
+- ⚪ Whitelist Mode (Only allow whitelisted players to join server)<br>
+- ⚪ Unban Player
+- ⚪ Broadcast player joins in server<br>
+- ⚪ Create RCON Log 
+</details>
+
 ## How to run directly from the code:
 - Install python, at least 3.11
 - Install poetry `pip install poetry` make sure you add it to your PATH
