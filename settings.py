@@ -13,21 +13,25 @@ from ui import BrowserManager
 WINDOWS_STEAMCMD_PATH = "steamcmd/steamcmd.exe"
 LINUX_STEAMCMD_PATH = "/usr/games/steamcmd"
 
-BASE_LAUNCHER_PATH = "steamcmd/steamapps/common/PalServer/"
+WINDOWS_BASE_LAUNCHER_PATH = "steamcmd/steamapps/common/PalServer/"
+LINUX_BASE_LAUNCHER_PATH = ".steam/steam/steamapps/common/PalServer/"
+
+
 WINDOWS_LAUNCHER_FILE = "PalServer.exe"
 LINUX_LAUNCHER_FILE = "PalServer.sh"
 
-PALWORLDSETTINGS_INI_BASE_PATH = f"{BASE_LAUNCHER_PATH}Pal/Saved/Config/"
+PALWORLDSETTINGS_INI_BASE_PATH = "Pal/Saved/Config/"
 PALWORLDSETTINGS_INI_FILE = "PalWorldSettings.ini"
 DEFAULTPALWORLDSETTINGS_INI_FILE = "DefaultPalWorldSettings.ini"
 
 LOCAL_SERVER_BACKUP_PATH = "Backups/"
-LOCAL_SERVER_DATA_PATH = f"{BASE_LAUNCHER_PATH}Pal/Saved"
+LOCAL_SERVER_DATA_PATH = "Pal/Saved"
 
 BASE_URL = "https://palworld-servertools.lukium.ai"
 TEMPLATES = [
     "base.html",
     "home.html",
+    "login.html",
     "rcon_loader.html",
     "rcon.html",
     "server_installer.html",
@@ -44,6 +48,7 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
+        self.version: str = "0.5.1"
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()
@@ -53,8 +58,6 @@ class Settings:
         self.memorystorage = MemoryStorage(BASE_URL, TEMPLATES, STATIC_FILES)
 
         self.pyinstaller_mode: bool = False
-
-        self.working_server = ""
 
         self.set_logging()
         self.set_pyinstaller_mode()
@@ -91,36 +94,80 @@ class Settings:
         windows_or_linux = "Windows" if self.app_os == "Windows" else "Linux"
         # Set the launcher path and steamcmd path based on the operating system
         if windows_or_linux == "Windows":
+            # Set the base launcher path based on the operating system
+            base_launcher_path = WINDOWS_BASE_LAUNCHER_PATH
+
+            # Set the launcher path based on the operating system
             self.localserver.launcher_path = os.path.join(
-                exe_path, BASE_LAUNCHER_PATH, WINDOWS_LAUNCHER_FILE
+                exe_path, base_launcher_path, WINDOWS_LAUNCHER_FILE
             )
+
+            # Set the steamcmd path based on the operating system
             self.localserver.steamcmd_path = os.path.join(
                 exe_path, WINDOWS_STEAMCMD_PATH
             )
-        else:
-            self.localserver.launcher_path = os.path.join(
-                exe_path, BASE_LAUNCHER_PATH, LINUX_LAUNCHER_FILE
+
+            # Set the default PalWorldSettings.ini path based on the operating system
+            self.localserver.default_ini_path = os.path.join(
+                exe_path,
+                base_launcher_path,
+                DEFAULTPALWORLDSETTINGS_INI_FILE,
             )
+
+            # Set the PalWorldSettings.ini path based on the operating system
+            self.localserver.ini_path = os.path.join(
+                exe_path,
+                base_launcher_path,
+                PALWORLDSETTINGS_INI_BASE_PATH,
+                f"{windows_or_linux}Server",
+                PALWORLDSETTINGS_INI_FILE,
+            )
+
+            # Set the backup path based on the operating system
+            self.localserver.data_path = os.path.join(
+                exe_path,
+                base_launcher_path,
+                LOCAL_SERVER_DATA_PATH,
+            )
+
+        else:
+            home_dir = os.environ["HOME"]
+            base_launcher_path = os.path.join(
+                home_dir, LINUX_BASE_LAUNCHER_PATH
+            )
+
+            # Set the launcher path based on the operating system
+            self.localserver.launcher_path = os.path.join(
+                base_launcher_path, LINUX_LAUNCHER_FILE
+            )
+
+            # Set the steamcmd path based on the operating system
             self.localserver.steamcmd_path = LINUX_STEAMCMD_PATH
-        # Set the default PalWorldSettings.ini path based on the operating system
-        self.localserver.default_ini_path = os.path.join(
-            exe_path,
-            BASE_LAUNCHER_PATH,
-            DEFAULTPALWORLDSETTINGS_INI_FILE,
-        )
-        # Set the PalWorldSettings.ini path based on the operating system
-        self.localserver.ini_path = os.path.join(
-            exe_path,
-            PALWORLDSETTINGS_INI_BASE_PATH,
-            f"{windows_or_linux}Server",
-            PALWORLDSETTINGS_INI_FILE,
-        )
+
+            # Set the default PalWorldSettings.ini path based on the operating system
+            self.localserver.default_ini_path = os.path.join(
+                base_launcher_path,
+                DEFAULTPALWORLDSETTINGS_INI_FILE,
+            )
+
+            # Set the PalWorldSettings.ini path based on the operating system
+            self.localserver.ini_path = os.path.join(
+                base_launcher_path,
+                PALWORLDSETTINGS_INI_BASE_PATH,
+                f"{windows_or_linux}Server",
+                PALWORLDSETTINGS_INI_FILE,
+            )
+
+            # Set the backup path based on the operating system
+            self.localserver.data_path = os.path.join(
+                base_launcher_path,
+                LOCAL_SERVER_DATA_PATH,
+            )
+
         self.localserver.backup_path = os.path.join(
             exe_path, LOCAL_SERVER_BACKUP_PATH
         )
-        self.localserver.data_path = os.path.join(
-            exe_path, LOCAL_SERVER_DATA_PATH
-        )
+
         logging.info(
             "Local server steamcmd path: %s", self.localserver.steamcmd_path
         )
@@ -146,10 +193,17 @@ class Settings:
             raise ValueError("Unknown operating system.")
         logging.info("Application OS: %s", self.app_os)
 
-    def set_working_server(self, local_or_remote: str):
+    def set_management_mode(self, local_or_remote: str):
         """Set the working server to either local or remote."""
-        self.working_server = local_or_remote
-        logging.info("Working server: %s", self.working_server)
+        self.localserver.management_mode = local_or_remote
+        logging.info("Management: %s", self.localserver.management_mode)
+
+    def set_management_password(self, password: str):
+        """Set the management password for the local server."""
+        self.localserver.management_password = password
+        logging.info(
+            "Management password: %s", self.localserver.management_password
+        )
 
     def download_ui(self):
         """Download the UI files if necessary."""

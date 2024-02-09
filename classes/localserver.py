@@ -5,6 +5,9 @@ class LocalServer:
     """This class is used to store the paths of the local server."""
 
     def __init__(self):
+        self.management_mode = ""
+        self.management_password = ""
+        self.authenticated: bool = False
         self.steamcmd_path = ""
         self.steamcmd_installed: bool = False
         self.backup_path = ""

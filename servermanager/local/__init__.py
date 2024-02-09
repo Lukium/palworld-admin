@@ -30,8 +30,10 @@ def check_steamcmd_install() -> dict:
     result = {}
     # Check if steamcmd is installed
     try:
-        logging.info("Checking SteamCMD installation in %s",
-                     app_settings.localserver.steamcmd_path)
+        logging.info(
+            "Checking SteamCMD installation in %s",
+            app_settings.localserver.steamcmd_path,
+        )
         if os.path.isfile(app_settings.localserver.steamcmd_path):
             result["status"] = "success"
             result["value"] = True
@@ -54,10 +56,15 @@ def check_palworld_install() -> dict:
     result = {}
     # Check if PalWorld is installed
     try:
-        logging.info("Checking PalWorld installation in %s", app_settings.localserver.ini_path)
+        logging.info(
+            "Checking PalWorld installation in %s",
+            app_settings.localserver.ini_path,
+        )
         if os.path.isfile(app_settings.localserver.ini_path):
             # Check if the file is not empty by reading the file and checking for content
-            with open(app_settings.localserver.ini_path, 'r', encoding="utf-8") as file:
+            with open(
+                app_settings.localserver.ini_path, "r", encoding="utf-8"
+            ) as file:
                 file_content = file.read()
             # Remove leading and trailing whitespace
             file_content = file_content.strip()
@@ -83,7 +90,10 @@ def check_server_running() -> dict:
     """Check if the server is running."""
     result = {}
     try:
-        identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
+        if app_settings.app_os == "Windows":
+            identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
+        else:
+            identified = identify_process_by_name("PalServer-Linux-Test")
         if identified["status"] == "success":
             if identified["value"] != "No matching processes found.":
                 result["status"] = "success"
@@ -108,10 +118,7 @@ def check_server_running() -> dict:
 
 def check_install() -> dict:
     """Check if steamcmd is installed."""
-    # Set the working server to Local
-    app_settings.set_working_server("Local")
-
-    result = {} # Final result to be returned
+    result = {}  # Final result to be returned
 
     # Check Installation
     os_result = check_os()
@@ -132,8 +139,13 @@ def check_install() -> dict:
         result["running"] = result_running
 
         # If both SteamCMD and PalServer are installed, read the settings
-        if steamcmd_result["value"] is True and palserver_result["value"] is True:
-            logging.info("SteamCMD and PalServer are installed, reading settings.")
+        if (
+            steamcmd_result["value"] is True
+            and palserver_result["value"] is True
+        ):
+            logging.info(
+                "SteamCMD and PalServer are installed, reading settings."
+            )
             result["settings"] = read_server_settings()
     else:
         result["status"] = "error"
@@ -145,9 +157,13 @@ def check_install() -> dict:
 def read_server_settings():
     """Read server settings from the settings file."""
     result = {}
-    logging.info("Reading settings file from %s", app_settings.localserver.ini_path)
+    logging.info(
+        "Reading settings file from %s", app_settings.localserver.ini_path
+    )
     try:
-        with open(app_settings.localserver.ini_path, 'r', encoding="utf-8") as file:
+        with open(
+            app_settings.localserver.ini_path, "r", encoding="utf-8"
+        ) as file:
             lines = file.readlines()
             result["status"] = "success"
             result["value"] = lines
@@ -163,7 +179,9 @@ def read_server_settings():
             if line.startswith("OptionSettings="):
                 # Extract the settings string
                 settings_line = line
-                settings_string = settings_line[settings_line.find("(")+1:settings_line.find(")")]
+                settings_string = settings_line[
+                    settings_line.find("(") + 1 : settings_line.find(")")
+                ]
 
                 # Break down and sort the settings
                 settings = settings_string.split(",")
@@ -190,7 +208,11 @@ def read_server_settings():
 def backup_server() -> dict:
     """Backup the server data."""
     result = {}
-    logging.info("Backing up server data from %s to %s", app_settings.localserver.data_path, app_settings.localserver.backup_path)
+    logging.info(
+        "Backing up server data from %s to %s",
+        app_settings.localserver.data_path,
+        app_settings.localserver.backup_path,
+    )
     backup_path = app_settings.localserver.backup_path
     data_path = app_settings.localserver.data_path
     try:
@@ -232,7 +254,10 @@ def install_server() -> dict:
     if not app_settings.localserver.steamcmd_installed:
         steamcmd_result = install_steamcmd()
     else:
-        steamcmd_result = {"status": "success", "message": "SteamCMD already installed"}
+        steamcmd_result = {
+            "status": "success",
+            "message": "SteamCMD already installed",
+        }
     palserver_result = install_palserver()
     saved_data_result = check_palworld_install()
     result["steamcmd"] = steamcmd_result
@@ -265,7 +290,7 @@ def install_steamcmd() -> dict:
                 [
                     "powershell",
                     "-Command",
-                    "Invoke-WebRequest -Uri https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip -OutFile steamcmd.zip", # pylint: disable=line-too-long
+                    "Invoke-WebRequest -Uri https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip -OutFile steamcmd.zip",  # pylint: disable=line-too-long
                 ],
                 check=True,
             )
@@ -301,8 +326,81 @@ def install_steamcmd() -> dict:
         return result
 
     else:
-        # TODO: Add support for Linux and macOS
-        pass
+        # Same functionality, but for linux
+        try:
+            logging.info("Installing SteamCMD")
+            # Run apt update
+            subprocess.run(
+                [
+                    "sudo",
+                    "apt-get",
+                    "update",
+                    "-y",
+                ],
+                check=True,
+            )
+            # Install software-properties-common and debconf-utils
+            subprocess.run(
+                [
+                    "sudo",
+                    "apt-get",
+                    "install",
+                    "software-properties-common",
+                    "debconf-utils",
+                    "-y",
+                ],
+                check=True,
+            )
+            # Add the i386 architecture
+            subprocess.run(
+                [
+                    "sudo",
+                    "dpkg",
+                    "--add-architecture",
+                    "i386",
+                ],
+                check=True,
+            )
+            # Accept the SteamCMD EULA
+            subprocess.run(
+                [
+                    "echo",
+                    "steamcmd steam/question select I AGREE",
+                    "|",
+                    "sudo",
+                    "debconf-set-selections",
+                ],
+                check=True,
+            )
+            # Rerun apt update
+            subprocess.run(
+                [
+                    "sudo",
+                    "apt-get",
+                    "update",
+                    "-y",
+                ],
+                check=True,
+            )
+            # Install steamcmd
+            subprocess.run(
+                [
+                    "sudo",
+                    "apt-get",
+                    "install",
+                    "steamcmd",
+                    "-y",
+                ],
+                check=True,
+            )
+            result["status"] = "success"
+            result["message"] = "SteamCMD installed successfully"
+            logging.info("SteamCMD installed successfully")
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["message"] = "Error installing SteamCMD"
+            logging.info("Error installing SteamCMD: %s", e)
+        return result
 
 
 def install_palserver():
@@ -315,7 +413,7 @@ def install_palserver():
                 [
                     "powershell",
                     "-Command",
-                    "cd steamcmd; ./steamcmd.exe +login anonymous +app_update 2394010 validate +quit", # pylint: disable=line-too-long
+                    "cd steamcmd; ./steamcmd.exe +login anonymous +app_update 2394010 validate +quit",  # pylint: disable=line-too-long
                 ],
                 check=True,
             )
@@ -329,8 +427,71 @@ def install_palserver():
         return result
 
     else:
-        # TODO: Add support for Linux and macOS
-        pass
+        # Same functionality, but for linux
+        home_dir = os.environ["HOME"]
+        sdk32_path = os.path.join(home_dir, ".steam/sdk32")
+        sdk64_path = os.path.join(home_dir, ".steam/sdk64")
+        linux32_path = os.path.join(home_dir, ".steam/steam/steamcmd/linux32")
+        linux64_path = os.path.join(home_dir, ".steam/steam/steamcmd/linux64")
+        try:
+            logging.info("Installing PalServer")
+            # Check if sdk directories exist, if not create them using symlinks
+            subprocess.run(["echo", home_dir], check=True)
+            subprocess.run(["echo", sdk32_path], check=True)
+            subprocess.run(["echo", sdk64_path], check=True)
+            if not os.path.exists(sdk32_path):
+                logging.info("Creating sdk32 symlink")
+                subprocess.run(
+                    [
+                        "ln",
+                        "-s",
+                        linux32_path,
+                        sdk32_path,
+                    ],
+                    check=True,
+                )
+            else:
+                logging.info("sdk32 symlink already exists")
+
+            if not os.path.exists(sdk64_path):
+                logging.info("Creating sdk64 symlink")
+                subprocess.run(
+                    [
+                        "ln",
+                        "-s",
+                        linux64_path,
+                        sdk64_path,
+                    ],
+                    check=True,
+                )
+            else:
+                logging.info("sdk64 symlink already exists")
+
+            logging.info("Running steamcmd to install PalServer")
+
+            # Run steamcmd to install PalServer
+            subprocess.run(
+                [
+                    "/usr/games/steamcmd",
+                    "+login",
+                    "anonymous",
+                    "+app_update",
+                    "2394010",
+                    "validate",
+                    "+quit",
+                ],
+                check=True,
+            )
+
+            result["status"] = "success"
+            result["message"] = "PalServer installed successfully"
+            logging.info("PalServer installed successfully")
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["message"] = "Error installing PalServer"
+            logging.info("Error installing PalServer: %s", e)
+        return result
+
 
 def run_server(launcher_args: dict = None):
     """Run the server."""
@@ -344,7 +505,7 @@ def run_server(launcher_args: dict = None):
     auto_backup = launcher_args["auto_backup"]
     auto_backup_delay = launcher_args["auto_backup_delay"]
     # Construct the command with necessary parameters and flags, add - for all flags except epicapp
-    cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}' # pylint: disable=line-too-long
+    cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
     info = f"Running server. Command: {cmd}"
 
     try:
@@ -391,9 +552,12 @@ def delete_existing_settings():
 
 def copy_default_settings():
     """Copy default settings to the server."""
+    logging.info("Copying default settings to the server")
     result = {}
     default_file = app_settings.localserver.default_ini_path
+    logging.info("Default settings file: %s", default_file)
     settings_file = app_settings.localserver.ini_path
+    logging.info("Settings file: %s", settings_file)
     # Only proceed if the default settings file exists, otherwise return an error
     if os.path.isfile(default_file):
 
@@ -413,12 +577,16 @@ def copy_default_settings():
                 logging.info("Default settings copied to the server")
             else:
                 result["status"] = "error"
-                result["message"] = "Error copying default settings to the server"
+                result["message"] = (
+                    "Error copying default settings to the server"
+                )
                 logging.info("Error copying default settings to the server")
         except Exception as e:  # pylint: disable=broad-except
             result["status"] = "error"
             result["message"] = "Error copying default settings to the server"
-            logging.error("Error copying default settings to the server: %s", e)
+            logging.error(
+                "Error copying default settings to the server: %s", e
+            )
         return result
     else:
         result["status"] = "error"
@@ -435,7 +603,10 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
         result["message"] = "No settings to change provided"
         return result
 
-    logging.info("Updating PalWorld settings file. Settings to change:\n%s", settings_to_change)
+    logging.info(
+        "Updating PalWorld settings file. Settings to change:\n%s",
+        settings_to_change,
+    )
 
     public_ip = get_public_ip()
     if not public_ip:
@@ -461,7 +632,9 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
             if line.startswith("OptionSettings="):
                 # Extract the settings string
                 settings_line = line
-                settings_string = settings_line[settings_line.find("(")+1:settings_line.find(")")]
+                settings_string = settings_line[
+                    settings_line.find("(") + 1 : settings_line.find(")")
+                ]
 
                 # Break down and sort the settings
                 settings = settings_string.split(",")
@@ -471,25 +644,29 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
                     value = setting.split("=")[1]
                     active_setting = (key, value)
                     if active_setting[0] in settings_to_change:
-                        setting=f"{active_setting[0]}={settings_to_change[active_setting[0]]}"
+                        setting = f"{active_setting[0]}={settings_to_change[active_setting[0]]}"
                         modified_settings.append(setting)
                     else:
                         modified_settings.append(setting)
 
                 # Rebuild the modified settings string
                 modified_settings_string = ",".join(modified_settings)
-                modified_settings_line = f"OptionSettings=({modified_settings_string})\n"
+                modified_settings_line = (
+                    f"OptionSettings=({modified_settings_string})\n"
+                )
 
                 # Replace the original line with the modified line
                 lines[i] = modified_settings_line
         # Write the updated settings back to the file
-        with open(app_settings.localserver.ini_path, 'w', encoding="utf-8") as file:
+        with open(
+            app_settings.localserver.ini_path, "w", encoding="utf-8"
+        ) as file:
             file.writelines(lines)
 
         result["status"] = "success"
         result["message"] = "Settings updated successfully"
         logging.info("Settings updated successfully")
-    except Exception as e: # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
         result["message"] = "Error writing settings file"
         logging.error("Error writing settings file: %s", e)
@@ -511,18 +688,24 @@ def first_run():
     }
     run_server(launcher_args)
     time.sleep(10)
-    identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
+    if app_settings.app_os == "Windows":
+        identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
+    else:
+        identified = identify_process_by_name("PalServer-Linux-Test")
     if identified["status"] == "success":
-        info = f"Server Process ID: {identified["value"]}"
+        info = f'Server Process ID: {identified["value"]}'
         logging.info(info)
         pid = identified["value"]
-        logging.info("Giving server 5 seconds to fully start, before shutting it down")
+        logging.info(
+            "Giving server 5 seconds to fully start, before shutting it down"
+        )
         time.sleep(5)
         terminated = terminate_process_by_pid(pid)
+        logging.info("Server termination status: %s", terminated)
         if terminated:
             copied = copy_default_settings()
             if copied["status"] == "success":
-                settings_to_change ={ # Used to enable RCON
+                settings_to_change = {  # Used to enable RCON
                     "RCONEnabled": "True",
                     "AdminPassword": '"admin"',
                 }
@@ -537,7 +720,9 @@ def first_run():
                     return result
             else:
                 result["status"] = "error"
-                result["message"] = "Error copying default settings to the server"
+                result["message"] = (
+                    "Error copying default settings to the server"
+                )
                 return result
         else:
             result["status"] = "error"
@@ -596,8 +781,44 @@ def identify_process_by_name(executable_name: str):
                 time.sleep(1)
 
     else:
-        # TODO: Add support for Linux and macOS
-        pass
+        find_cmd = ["pgrep", "-f", executable_name]
+        for n in range(10):
+            info = (
+                f"Attempt {n+1}/10 to find process by name: {executable_name}"
+            )
+            logging.info(info)
+            try:
+                process = subprocess.run(
+                    find_cmd,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if process.stdout:
+                    # pgrep returns PIDs, one per line. Extract them.
+                    pids = process.stdout.strip().split("\n")
+                    if len(pids) > 0:
+                        pid = pids[0]  # Take the first PID found
+                        result["status"] = "success"
+                        result["value"] = pid
+                    else:
+                        result["status"] = "success"
+                        result["value"] = "No matching processes found."
+                        logging.info("No matching processes found.")
+                    return result
+            except subprocess.CalledProcessError as e:
+                info = f"Failed to execute find command: {e}"
+                logging.error(info)
+                result["status"] = "error"
+                result["value"] = "Failed to find process due to error."
+                return result
+            time.sleep(1)  # Wait a bit before trying again if needed
+
+        # If we get here, no process was found after 10 attempts
+        logging.info("No matching processes found after 10 attempts.")
+        result["status"] = "error"
+        result["value"] = "Process not found after multiple attempts."
+        return result
 
 
 def terminate_process_by_pid(pid: int):
@@ -615,8 +836,30 @@ def terminate_process_by_pid(pid: int):
             logging.error(info)
             return False
     else:
-        # TODO: Add support for Linux and macOS
-        pass
+        try:
+            # Attempt graceful termination with SIGTERM first
+            # subprocess.run(["kill", "-SIGTERM", str(pid)], check=True)
+            # logging.info("Sent SIGTERM to terminate process with ID %s", pid)
+
+            # Optionally, wait a bit and check if process needs to be killed forcefully
+            # This can be done using `kill -0` to check if process still exists,
+            # and `kill -SIGKILL` if it does
+            # For simplicity, this example does not include the check and wait logic
+
+            # Uncomment the below lines to forcefully terminate if the process does not stop
+            # time.sleep(2)  # Wait for the process to terminate
+            subprocess.run(["kill", "-SIGKILL", str(pid)], check=True)
+            info = f"Forcibly terminated process with ID {pid} using SIGKILL."
+            logging.info(
+                "Forcibly terminated process with id %s using SIGKILL", {pid}
+            )
+
+            app_settings.localserver.running = False
+            return True
+        except subprocess.CalledProcessError as e:
+            info = f"Failed to terminate process with ID {pid}: {e}"
+            logging.error(info)
+            return False
 
 
 def terminate_process_by_name(executable_name: str):

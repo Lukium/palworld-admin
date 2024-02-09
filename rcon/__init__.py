@@ -1,4 +1,5 @@
 """RCON Module for handling RCON commands to a DayZ server."""
+
 import logging
 from queue import Queue
 import threading
@@ -6,6 +7,7 @@ import threading
 from rcon.rcon import execute, resolve_address
 
 from settings import app_settings
+
 
 def execute_rcon(ip_address, port, password, command, queue) -> None:
     """Execute the specified RCON command and put the result in the queue."""
@@ -32,7 +34,13 @@ def rcon_broadcast(ip_address, port, password, message) -> dict:
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
-        args=(ip_address, port, password, f"broadcast {message}", result_queue),
+        args=(
+            ip_address,
+            port,
+            password,
+            f"broadcast {message}",
+            result_queue,
+        ),
     )
     command_thread.start()
     command_thread.join()  # Wait for the thread to complete
@@ -69,7 +77,9 @@ def rcon_connect(ip_address, port, password) -> dict:
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
-        reply["message"] = f"Connection Error: {result.split(":")[1].strip().capitalize()}"
+        reply["message"] = (
+            f'Connection Error: {result.split(":")[1].strip().capitalize()}'
+        )
         reply["server_name"] = "N/A"
         reply["server_version"] = "N/A"
     elif "Error: Invalid Password?" in result:
@@ -79,7 +89,9 @@ def rcon_connect(ip_address, port, password) -> dict:
         reply["server_version"] = "N/A"
     elif "Could not resolve domain" in result:
         reply["status"] = "error"
-        reply["message"] = "Connection Error: Could not resolve domain name to a valid IP Address"
+        reply["message"] = (
+            "Connection Error: Could not resolve domain name to a valid IP Address"
+        )
         reply["server_name"] = "N/A"
         reply["server_version"] = "N/A"
     else:
@@ -90,6 +102,7 @@ def rcon_connect(ip_address, port, password) -> dict:
         reply["server_version"] = result.split("[")[1].split("]")[0].strip()
 
     return reply
+
 
 def rcon_fetch_players(ip_address, port, password) -> dict:
     """Fetch the list of players currently connected to the server."""
@@ -127,7 +140,9 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
         reply["players"] = player_list
     elif "Failed to execute command" in result:
         reply["status"] = "error"
-        reply["message"] = f"Connection Error: {result.split(":")[1].strip().capitalize()}"
+        reply["message"] = (
+            f'Connection Error: {result.split(":")[1].strip().capitalize()}'
+        )
         reply["player_count"] = 0
         reply["players"] = []
     else:
@@ -144,7 +159,13 @@ def rcon_kick_player(ip_address, port, password, player_steamid) -> dict:
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
-        args=(ip_address, port, password, f"KickPlayer {player_steamid}", result_queue),
+        args=(
+            ip_address,
+            port,
+            password,
+            f"KickPlayer {player_steamid}",
+            result_queue,
+        ),
     )
     command_thread.start()
     command_thread.join()  # Wait for the thread to complete
@@ -172,7 +193,13 @@ def rcon_ban_player(ip_address, port, password, player_steamid) -> dict:
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
-        args=(ip_address, port, password, f"BanPlayer {player_steamid}", result_queue),
+        args=(
+            ip_address,
+            port,
+            password,
+            f"BanPlayer {player_steamid}",
+            result_queue,
+        ),
     )
     command_thread.start()
     command_thread.join()  # Wait for the thread to complete
@@ -225,7 +252,13 @@ def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
-        args=(ip_address, port, password, f"Shutdown {delay} {message}", result_queue),
+        args=(
+            ip_address,
+            port,
+            password,
+            f"Shutdown {delay} {message}",
+            result_queue,
+        ),
     )
     command_thread.start()
     command_thread.join()  # Wait for the thread to complete
