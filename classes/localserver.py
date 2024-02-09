@@ -6,8 +6,13 @@ class LocalServer:
 
     def __init__(self):
         self.steamcmd_path = ""
+        self.steamcmd_installed: bool = False
+        self.backup_path = ""
+        self.data_path = ""
         self.launcher_path = ""
         self.ini_path = ""
+        self.palserver_installed: bool = False
         self.default_ini_path = ""
         self.connected: bool = False
+        self.running: bool = False
         self.ip: str = ""

@@ -241,7 +241,7 @@ def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
     else:
         reply["status"] = "success"
         reply["message"] = "Server shutdown initiated successfully"
-    
+
     return reply
 
 

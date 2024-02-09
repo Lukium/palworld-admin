@@ -22,6 +22,7 @@ from rcon import (
 from servermanager.local import (
     check_install,
     install_server,
+    backup_server,
     first_run,
     run_server,
     update_palworld_settings_ini,
@@ -97,12 +98,15 @@ def server_installer_cmd():
         result = check_install()
     elif data["function"] == "install_server":
         result = install_server()
+    elif data["function"] == "backup_server":
+        result = backup_server()
     elif data["function"] == "start_server":
-        result = run_server(data["launcher"])
+        result = run_server(data["data"])
     elif data["function"] == "first_run":
         result = first_run()
     elif data["function"] == "update_settings":
-        result = update_palworld_settings_ini(data["settings"])
+        logging.info("Data: %s", data)
+        result = update_palworld_settings_ini(data["data"])
     return jsonify(result)
 
 

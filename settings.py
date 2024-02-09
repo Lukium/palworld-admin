@@ -21,6 +21,9 @@ PALWORLDSETTINGS_INI_BASE_PATH = f"{BASE_LAUNCHER_PATH}Pal/Saved/Config/"
 PALWORLDSETTINGS_INI_FILE = "PalWorldSettings.ini"
 DEFAULTPALWORLDSETTINGS_INI_FILE = "DefaultPalWorldSettings.ini"
 
+LOCAL_SERVER_BACKUP_PATH = "Backups/"
+LOCAL_SERVER_DATA_PATH = f"{BASE_LAUNCHER_PATH}Pal/Saved"
+
 BASE_URL = "https://palworld-servertools.lukium.ai"
 TEMPLATES = [
     "base.html",
@@ -112,6 +115,12 @@ class Settings:
             f"{windows_or_linux}Server",
             PALWORLDSETTINGS_INI_FILE,
         )
+        self.localserver.backup_path = os.path.join(
+            exe_path, LOCAL_SERVER_BACKUP_PATH
+        )
+        self.localserver.data_path = os.path.join(
+            exe_path, LOCAL_SERVER_DATA_PATH
+        )
         logging.info(
             "Local server steamcmd path: %s", self.localserver.steamcmd_path
         )
@@ -119,6 +128,10 @@ class Settings:
             "Local server launcher path: %s", self.localserver.launcher_path
         )
         logging.info("Local server ini path: %s", self.localserver.ini_path)
+        logging.info(
+            "Local server backup path: %s", self.localserver.backup_path
+        )
+        logging.info("Local server data path: %s", self.localserver.data_path)
 
     def set_app_os(self):
         """Set the operating system of the application based on the current environment."""

@@ -12,7 +12,6 @@ import zipfile
 from settings import app_settings
 
 from helper.fileprocessing import file_to_lines
-from helper.multiprocess import run_function_on_process
 from helper.networking import get_public_ip, get_local_ip
 
 
@@ -80,6 +79,33 @@ def check_palworld_install() -> dict:
     return result
 
 
+def check_server_running() -> dict:
+    """Check if the server is running."""
+    result = {}
+    try:
+        identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
+        if identified["status"] == "success":
+            if identified["value"] != "No matching processes found.":
+                result["status"] = "success"
+                result["value"] = True
+                app_settings.localserver.running = True
+                logging.info("Server is running: %s", result)
+            else:
+                result["status"] = "success"
+                result["value"] = False
+                app_settings.localserver.running = False
+                logging.info("Server is not running: %s", result)
+        else:
+            result["status"] = "error"
+            result["value"] = "Error identifying server process"
+            logging.info("Error identifying server process: %s", identified)
+    except Exception as e:  # pylint: disable=broad-except
+        result["status"] = "error"
+        result["value"] = "Error checking if server is running"
+        logging.info("Error checking if server is running: %s", e)
+    return result
+
+
 def check_install() -> dict:
     """Check if steamcmd is installed."""
     # Set the working server to Local
@@ -91,6 +117,7 @@ def check_install() -> dict:
     os_result = check_os()
     steamcmd_result = check_steamcmd_install()
     palserver_result = check_palworld_install()
+    result_running = check_server_running()
 
     if (
         os_result["status"] == "success"
@@ -102,6 +129,7 @@ def check_install() -> dict:
         result["os"] = os_result
         result["steamcmd"] = steamcmd_result
         result["palserver"] = palserver_result
+        result["running"] = result_running
 
         # If both SteamCMD and PalServer are installed, read the settings
         if steamcmd_result["value"] is True and palserver_result["value"] is True:
@@ -156,6 +184,45 @@ def read_server_settings():
         result["status"] = "error"
         result["value"] = "Error processing settings file"
         logging.error("Error processing settings file: %s", e)
+    return result
+
+
+def backup_server() -> dict:
+    """Backup the server data."""
+    result = {}
+    logging.info("Backing up server data from %s to %s", app_settings.localserver.data_path, app_settings.localserver.backup_path)
+    backup_path = app_settings.localserver.backup_path
+    data_path = app_settings.localserver.data_path
+    try:
+        # Check if the backup path exists, if not create it
+        if not os.path.exists(backup_path):
+            os.makedirs(backup_path)
+            logging.info("Created backup path: %s", backup_path)
+        # Create a timestamp for the backup
+        timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+        # Create the backup folder
+        backup_folder = os.path.join(backup_path, f"{timestamp}", "Saved")
+        logging.info("Created backup folder: %s", backup_folder)
+        # Copy the data to the backup folder
+        shutil.copytree(data_path, backup_folder)
+        # Verify that the data was copied by comparing the contents of the data and backup folders
+        data_contents = os.listdir(data_path)
+        backup_contents = os.listdir(backup_folder)
+        if data_contents == backup_contents:
+            result["status"] = "success"
+            result["message"] = "Server data backed up successfully"
+            logging.info("Copied data to backup folder: %s", backup_folder)
+        else:
+            # If the contents of the data and backup folders do not match, delete the backup folder
+            if os.path.exists(backup_folder):
+                shutil.rmtree(backup_folder)
+            result["status"] = "error"
+            result["message"] = "Error backing up server data"
+            logging.error("Error backing up server data")
+    except Exception as e:  # pylint: disable=broad-except
+        result["status"] = "error"
+        result["message"] = "Exception while backing up server data"
+        logging.error("Exception while backing up server data: %s", e)
     return result
 
 
@@ -287,6 +354,7 @@ def run_server(launcher_args: dict = None):
         subprocess.Popen(cmd, shell=True)
         result["status"] = "success"
         result["message"] = "Server started successfully"
+        app_settings.localserver.running = True
     except Exception as e:  # pylint: disable=broad-except
         info = f"Error starting server: {e}"
         logging.error(info)
@@ -505,9 +573,15 @@ def identify_process_by_name(executable_name: str):
                     pids = re.findall(
                         r"^\s*(\d+)", process.stdout, re.MULTILINE
                     )
-                    pid = pids[0]
-                    result["status"] = "success"
-                    result["value"] = pid
+                    if len(pids) > 0:
+                        pid = pids[0]
+                        result["status"] = "success"
+                        result["value"] = pid
+
+                    else:
+                        result["status"] = "success"
+                        result["value"] = "No matching processes found."
+                        logging.info("No matching processes found.")
                     return result
             except subprocess.CalledProcessError as e:
                 info = f"Failed to execute find command: {e}"
@@ -533,6 +607,7 @@ def terminate_process_by_pid(pid: int):
             terminate_cmd = f'powershell "Stop-Process -Id {pid} -Force"'
             subprocess.run(terminate_cmd, check=True, shell=True)
             info = f"Terminated process with ID {pid}."
+            app_settings.localserver.running = False
             logging.info(info)
             return True
         except subprocess.CalledProcessError as e:
@@ -572,6 +647,7 @@ def terminate_process_by_name(executable_name: str):
                         )
                         subprocess.run(terminate_cmd, check=True, shell=True)
                         info = f"Terminated process with ID {pid}."
+                        app_settings.localserver.running = False
                         logging.info(info)
                         return True
                     except subprocess.CalledProcessError as e:
