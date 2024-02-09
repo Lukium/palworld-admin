@@ -56,11 +56,12 @@
 
 <details open>
   <summary>⚪Beyond RCON</summary>
-- ⚪ Whitelist Player
+- ⚪ Whitelist Player<br>
 - ⚪ Whitelist Mode (Only allow whitelisted players to join server)<br>
-- ⚪ Unban Player
+- ⚪ Unban Player<br>
 - ⚪ Broadcast player joins in server<br>
-- ⚪ Create RCON Log 
+- ⚪ Create RCON Log<br>
+- ⚪ display HEX UID for easy Save Identification
 </details>
 
 ## How to run directly from the code:
