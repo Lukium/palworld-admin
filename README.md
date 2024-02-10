@@ -104,6 +104,7 @@ You should now be connected to the server via RCON
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/be2c08c7-6c8c-4324-97fc-30732157f893)
 
 ## Troubleshooting:
+### Webview2 Runtime Requirement:
 If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
 You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/582eac35-40f5-4a17-abec-55da4389a356)
