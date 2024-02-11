@@ -1,7 +1,8 @@
-# Palworld Dedicated Server Tools
-
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/4a2a9279-1636-4006-8470-cb7e9c12e26a)
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/45511edd-6b6d-485b-98ee-54c1dff3f796)
+<h1 align="center" >Palworld Dedicated Server Tools</h1>
+<p align="center" >
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/d8ab4aa6-bc99-44a1-87a6-25653d1236b4"></image>
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/45511edd-6b6d-485b-98ee-54c1dff3f796"></image>
+</p>
 
 
 ## Feature Roadmap
