@@ -1,6 +1,7 @@
 """ This module contains the default values and descriptions for the server settings. """
 
 import logging
+import multiprocessing
 import os
 import platform
 import sys
@@ -48,7 +49,7 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.version: str = "0.6.1"
+        self.version: str = "0.6.2"
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()
@@ -62,6 +63,7 @@ class Settings:
         self.set_logging()
         self.set_pyinstaller_mode()
         self.set_app_os()
+        self.detect_cpu_cores()
         self.set_local_server_paths()
         self.download_ui()
 
@@ -210,6 +212,11 @@ class Settings:
         if not self.dev:
             self.memorystorage.download_static_files()
             self.memorystorage.download_templates()
+
+    def detect_cpu_cores(self):
+        """Detect the number of CPU cores."""
+        self.localserver.cpu_cores = multiprocessing.cpu_count()
+        logging.info("CPU cores: %s", self.localserver.cpu_cores)
 
 
 app_settings = Settings()

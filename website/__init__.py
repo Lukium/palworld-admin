@@ -57,8 +57,7 @@ def create_app():
         def static(filename):
             """Serve static files from memory."""
             file_path = f"/static/{filename}"
-            info = f"Requested static file: {file_path}"
-            logging.info(info)
+            logging.info("Requested static file: %s", file_path)
             if file_path in app_settings.memorystorage.static_files_in_memory:
                 content = app_settings.memorystorage.static_files_in_memory[
                     file_path

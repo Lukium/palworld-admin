@@ -1,10 +1,16 @@
 """This file contains the class LocalServer"""
 
+import datetime
+
 
 class LocalServer:
     """This class is used to store the paths of the local server."""
 
     def __init__(self):
+        self.last_backup: datetime.datetime = None
+        self.last_cpu_check: datetime.datetime = None
+        self.last_cpu_time: float = None
+        self.cpu_cores = 0
         self.management_mode = ""
         self.management_password = ""
         self.steamcmd_path = ""

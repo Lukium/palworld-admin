@@ -8,6 +8,8 @@ import subprocess
 import time
 import zipfile
 
+from datetime import datetime
+
 # import settings as s
 from settings import app_settings
 
@@ -116,53 +118,198 @@ def check_server_running() -> dict:
     return result
 
 
-def check_server_running_by_pid() -> dict:
-    """Check if the server is running by PID."""
+def get_cpu_time_by_pid(pid: int) -> dict:
+    """Get the CPU time by PID."""
     result = {}
-    pid = app_settings.localserver.pid
-    logging.info("Checking server status by PID: %s", pid)
+    logging.info("Getting CPU time by PID: %s", pid)
     if pid:
         if app_settings.app_os == "Windows":
-            find_cmd = f'powershell "Get-Process | Where-Object {{ $_.Id -eq {pid} }} | Select-Object Id, Name, MainWindowTitle"'  # pylint: disable=line-too-long
+            cpu_cmd = f'powershell "(Get-Process | Where-Object {{ $_.Id -eq {pid} }} | Select-Object -ExpandProperty CPU)"'  # pylint: disable=line-too-long
             try:
                 process = subprocess.run(
-                    find_cmd,
+                    cpu_cmd,
                     check=True,
                     shell=True,
                     capture_output=True,
                     text=True,
                 )
                 if process.stdout:
-                    # Extract process IDs
-                    pids = re.findall(
-                        r"^\s*(\d+)", process.stdout, re.MULTILINE
+                    cpu_time = process.stdout.strip()
+                    if cpu_time == "":
+                        cpu_time = "0"
+                    # Calculate the CPU usage in percentage using the number of cores,
+                    # time delta since last check and CPU time delta
+                    cores = app_settings.localserver.cpu_cores
+                    logging.info(
+                        "last_cpu_check: %s",
+                        app_settings.localserver.last_cpu_check,
                     )
-                    if len(pids) > 0:
-                        result["status"] = "success"
-                        result["value"] = True
-                        app_settings.localserver.running = True
-                        logging.info("Server is running: %s", result)
+                    logging.info(
+                        "last_cpu_time: %s",
+                        app_settings.localserver.last_cpu_time,
+                    )
+                    if (
+                        app_settings.localserver.last_cpu_check is not None
+                        and app_settings.localserver.last_cpu_time is not None
+                    ):
+                        time_delta = (
+                            datetime.now()
+                            - app_settings.localserver.last_cpu_check
+                        )
+                        cpu_delta = (
+                            float(cpu_time)
+                            - app_settings.localserver.last_cpu_time
+                        )
+                        cpu_usage = (
+                            cpu_delta / (time_delta.total_seconds() * cores)
+                        ) * 100
+                        cpu_usage = round(cpu_usage, 2)
                     else:
-                        result["status"] = "success"
-                        result["value"] = False
-                        app_settings.localserver.running = False
-                        logging.info("Server is not running: %s", result)
+                        cpu_usage = 0
+                    app_settings.localserver.last_cpu_check = datetime.now()
+                    app_settings.localserver.last_cpu_time = float(cpu_time)
+                    result["status"] = "success"
+                    result["cpu_time"] = cpu_time
+                    result["cpu_usage"] = cpu_usage
+                else:
+                    result["status"] = "success"
+                    result["cpu_time"] = "0"
+                    result["cpu_usage"] = "0"
+                    logging.info("CPU time: %s", result)
             except subprocess.CalledProcessError as e:
                 result["status"] = "error"
-                result["value"] = "Error identifying server process"
-                logging.info("Error identifying server process: %s", e)
+                result["value"] = "Error getting CPU time"
+                logging.info("Error getting CPU time: %s", e)
         else:
-            logging.info("Checking server status by PID: %s", pid)
-            find_cmd = ["ps", "-p", str(pid)]
+            cpu_cmd = ["ps", "-p", str(pid), "-o", "time="]
+            try:
+                with open(
+                    f"/proc/{pid}/stat", "r", encoding="utf-8"
+                ) as stat_file:
+                    parts = stat_file.read().split()
+                    utime = int(parts[13])  # User time
+                    stime = int(parts[14])  # System time
+                    # Convert jiffies to seconds. Assume USER_HZ = 100 for simplicity.
+                    # fmt: off
+                    jiffies_per_second = os.sysconf("SC_CLK_TCK")  # pylint: disable=no-member disable=line-too-long # sysconf is actually a function of os, but pylint doesn't know that
+                    # fmt: on
+                    logging.info("jiffies_per_second: %s", jiffies_per_second)
+                    cpu_time = (utime + stime) / jiffies_per_second
+
+                # Calculate the CPU usage in percentage using the number of cores,
+                # time delta since last check and CPU time delta
+                cores = app_settings.localserver.cpu_cores
+                logging.info(
+                    "last_cpu_check: %s",
+                    app_settings.localserver.last_cpu_check,
+                )
+                logging.info(
+                    "last_cpu_time: %s", app_settings.localserver.last_cpu_time
+                )
+                if (
+                    app_settings.localserver.last_cpu_check is not None
+                    and app_settings.localserver.last_cpu_time is not None
+                ):
+                    time_delta = (
+                        datetime.now()
+                        - app_settings.localserver.last_cpu_check
+                    ).total_seconds()
+                    cpu_delta = (
+                        cpu_time - app_settings.localserver.last_cpu_time
+                    )
+                    cpu_usage = (cpu_delta / (time_delta * cores)) * 100
+                    cpu_usage = round(cpu_usage, 2)
+                else:
+                    cpu_usage = 0
+
+                app_settings.localserver.last_cpu_check = datetime.now()
+                app_settings.localserver.last_cpu_time = cpu_time
+                result["status"] = "success"
+                result["cpu_time"] = cpu_time
+                result["cpu_usage"] = cpu_usage
+            except IOError as e:
+                result["status"] = "error"
+                result["value"] = "Error accessing process stats"
+                logging.info("Error accessing process stats: %s", e)
+    return result
+
+
+def get_ram_usage_by_pid(pid: int) -> dict:
+    """Get the RAM usage by PID."""
+    result = {}
+    logging.info("Getting RAM usage by PID: %s", pid)
+    if pid:
+        if app_settings.app_os == "Windows":
+            ram_cmd = f'powershell "(Get-Process | Where-Object {{ $_.Id -eq {pid} }} | ForEach-Object {{[math]::Round($_.WorkingSet / 1GB, 2)}})"'  # pylint: disable=line-too-long
             try:
                 process = subprocess.run(
-                    find_cmd,
+                    ram_cmd,
+                    check=True,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if process.stdout:
+                    ram_usage = process.stdout.strip()
+                    if ram_usage == "":
+                        ram_usage = "0"
+                    result["status"] = "success"
+                    result["value"] = ram_usage
+                    logging.info("RAM usage: %s", result)
+                else:
+                    result["status"] = "success"
+                    result["value"] = "0"
+                    logging.info("RAM usage: %s", result)
+            except subprocess.CalledProcessError as e:
+                result["status"] = "error"
+                result["value"] = "Error getting RAM usage"
+                logging.info("Error getting RAM usage: %s", e)
+        else:
+            ram_cmd = ["ps", "-p", str(pid), "-o", "rss="]
+            try:
+                process = subprocess.run(
+                    ram_cmd,
                     check=True,
                     capture_output=True,
                     text=True,
                 )
                 if process.stdout:
-                    logging.info("Server run check stdout: %s", process.stdout)
+                    ram_usage = process.stdout.strip()
+                    if ram_usage == "":
+                        ram_usage = "0"
+                    result["status"] = "success"
+                    result["value"] = str(round(int(ram_usage) / 1048576, 2))
+                    logging.info("RAM usage: %s", result)
+                else:
+                    result["status"] = "success"
+                    result["value"] = "0"
+                    logging.info("RAM usage: %s", result)
+            except subprocess.CalledProcessError as e:
+                result["status"] = "error"
+                result["value"] = "Error getting RAM usage"
+                logging.info("Error getting RAM usage: %s", e)
+    return result
+
+
+def pid_check(pid: int) -> dict:
+    """Check if the server is running by PID."""
+    result = {}
+    pid = app_settings.localserver.pid
+    logging.info("Checking server status by PID: %s", pid)
+    if app_settings.app_os == "Windows":
+        find_cmd = f'powershell "Get-Process | Where-Object {{ $_.Id -eq {pid} }} | Select-Object Id, Name, MainWindowTitle"'  # pylint: disable=line-too-long
+        try:
+            process = subprocess.run(
+                find_cmd,
+                check=True,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            if process.stdout:
+                # Extract process IDs
+                pids = re.findall(r"^\s*(\d+)", process.stdout, re.MULTILINE)
+                if len(pids) > 0:
                     result["status"] = "success"
                     result["value"] = True
                     app_settings.localserver.running = True
@@ -172,10 +319,61 @@ def check_server_running_by_pid() -> dict:
                     result["value"] = False
                     app_settings.localserver.running = False
                     logging.info("Server is not running: %s", result)
-            except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["value"] = "Error identifying server process"
+            logging.info("Error identifying server process: %s", e)
+    else:
+        logging.info("Checking server status by PID: %s", pid)
+        find_cmd = ["ps", "-p", str(pid)]
+        try:
+            process = subprocess.run(
+                find_cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            if process.stdout:
+                logging.info("Server run check stdout: %s", process.stdout)
+                result["status"] = "success"
+                result["value"] = True
+                app_settings.localserver.running = True
+                logging.info("Server is running: %s", result)
+            else:
                 result["status"] = "success"
                 result["value"] = False
-                logging.info("Error identifying server process: %s", e)
+                app_settings.localserver.running = False
+                logging.info("Server is not running: %s", result)
+        except subprocess.CalledProcessError as e:
+            result["status"] = "success"
+            result["value"] = False
+            logging.info("Error identifying server process: %s", e)
+    return result
+
+
+def check_server_running_by_pid() -> dict:
+    """Check if the server is running by PID."""
+    result = {}
+    pid = app_settings.localserver.pid
+    logging.info("Checking server status by PID: %s", pid)
+    if pid:
+        pid_result = pid_check(pid)
+        if pid_result["status"] == "success":
+            result["status"] = "success"
+            result["value"] = pid_result["value"]
+            cpu_result = get_cpu_time_by_pid(pid)
+            if cpu_result["status"] == "success":
+                logging.info("CPU Usage: %s", cpu_result)
+                result["cpu_time"] = cpu_result["cpu_time"]
+                result["cpu_usage"] = cpu_result["cpu_usage"]
+            ram_result = get_ram_usage_by_pid(pid)
+            if ram_result["status"] == "success":
+                logging.info("RAM Usage: %s", ram_result)
+                result["ram_usage"] = ram_result["value"]
+        else:
+            result["status"] = "error"
+            result["value"] = "Error checking server status by PID"
+            logging.info("Error checking server status by PID: %s", pid_result)
     else:
         result["status"] = "success"
         result["value"] = False
@@ -273,15 +471,13 @@ def read_server_settings():
     return result
 
 
-def backup_server_schedule() -> dict:
-    """Starts the backup schedule."""
-    # Run the first backup
-    backup_result = backup_server()
-
-
-def backup_server() -> dict:
+def backup_server(query: dict) -> dict:
     """Backup the server data."""
     result = {}
+    if "backup_type" in query:
+        backup_type = query["backup_type"]
+    if "backup_count" in query:
+        backup_count = query["backup_count"]
     logging.info(
         "Backing up server data from %s to %s",
         app_settings.localserver.data_path,
@@ -297,8 +493,12 @@ def backup_server() -> dict:
         # Create a timestamp for the backup
         timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
         # Create the backup folder
-        backup_folder = os.path.join(backup_path, f"{timestamp}", "Saved")
-        logging.info("Created backup folder: %s", backup_folder)
+        if backup_type == "manual":
+            backup_folder = os.path.join(backup_path, f"{timestamp}", "Saved")
+        else:
+            backup_folder = os.path.join(
+                backup_path, f"{timestamp}-AutoBackup", "Saved"
+            )
         # Copy the data to the backup folder
         shutil.copytree(data_path, backup_folder)
         # Verify that the data was copied by comparing the contents of the data and backup folders
@@ -315,6 +515,27 @@ def backup_server() -> dict:
             result["status"] = "error"
             result["message"] = "Error backing up server data"
             logging.error("Error backing up server data")
+
+        # If the backup count is greater than 0, delete old backups
+        if int(backup_count) > 0:
+            # If the backup count is greater than 0,
+            # delete old backups that have AutoBackup in the name
+            backup_folders = [
+                f
+                for f in os.listdir(backup_path)
+                if os.path.isdir(os.path.join(backup_path, f))
+            ]
+            backup_folders.sort(reverse=True)
+            # remove backup folders that do not have AutoBackup in the name
+            for folder in backup_folders:
+                if "AutoBackup" not in folder:
+                    backup_folders.remove(folder)
+            # remove old backups
+            if len(backup_folders) > int(backup_count):
+                for folder in backup_folders[int(backup_count) :]:
+                    shutil.rmtree(os.path.join(backup_path, folder))
+                    logging.info("Removed old backup: %s", folder)
+
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
         result["message"] = "Exception while backing up server data"
@@ -575,7 +796,6 @@ def run_server(launcher_args: dict = None):
     useperfthreads = launcher_args["useperfthreads"]
     noasyncloadingthread = launcher_args["NoAsyncLoadingThread"]
     usemultithreadfords = launcher_args["UseMultithreadForDS"]
-    launch_RCON = launcher_args["launch_RCON"]
     auto_backup = launcher_args["auto_backup"]
     auto_backup_delay = launcher_args["auto_backup_delay"]
     auto_backup_quantity = launcher_args["auto_backup_quantity"]
@@ -945,52 +1165,3 @@ def terminate_process_by_pid(pid: int):
             info = f"Failed to terminate process with ID {pid}: {e}"
             logging.error(info)
             return False
-
-
-def terminate_process_by_name(executable_name: str):
-    """Terminate a process by its executable name."""
-    if app_settings.app_os == "Windows":
-        find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.Name -eq '{executable_name}' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
-
-        try:
-            # Find processes
-            result = subprocess.run(
-                find_cmd,
-                check=True,
-                shell=True,
-                capture_output=True,
-                text=True,
-            )
-            if result.stdout:
-                # Extract process IDs
-                pids = re.findall(r"^\s*(\d+)", result.stdout, re.MULTILINE)
-                info: str = f"Server Process IDs: {pids}"
-                logging.info(info)
-
-                for pid in pids:
-                    try:
-                        # Terminate each process by its PID
-                        terminate_cmd = (
-                            f'powershell "Stop-Process -Id {pid} -Force"'
-                        )
-                        subprocess.run(terminate_cmd, check=True, shell=True)
-                        info = f"Terminated process with ID {pid}."
-                        app_settings.localserver.running = False
-                        logging.info(info)
-                        return True
-                    except subprocess.CalledProcessError as e:
-                        info = (
-                            f"Failed to terminate process with ID {pid}: {e}"
-                        )
-                        logging.error(info)
-                        return False
-            else:
-                logging.info("No matching processes found.")
-                return False
-        except subprocess.CalledProcessError as e:
-            info = f"Failed to execute find command: {e}"
-            logging.error(info)
-            return False
-    else:
-        # TODO: Add support for Linux and macOS
-        pass

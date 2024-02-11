@@ -148,7 +148,7 @@ def create_views():
         elif data["function"] == "install_server":
             result = install_server()
         elif data["function"] == "backup_server":
-            result = backup_server()
+            result = backup_server(data["data"])
         elif data["function"] == "start_server":
             result = run_server(data["data"])
         elif data["function"] == "first_run":
@@ -169,7 +169,6 @@ def create_views():
     def settingsgen():
         """Render the settingsgen page."""
         webview_headers = check_headers()
-        logging.info("Form data: %s \n\n", request.form.to_dict())
         if request.method == "POST":
             # Construct the string from the form data
             settings = ["[/Script/Pal.PalGameWorldSettings]\nOptionSettings=("]
