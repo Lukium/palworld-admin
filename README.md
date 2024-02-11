@@ -1,7 +1,8 @@
-<h1 align="center" >Palworld Dedicated Server Tools</h1>
+<h1 align="center" >Palworld A.D.M.I.N.</h1>
+<h6 align="center"> (Automated Deployment, Management & Installation Nexus)</h6>
 <p align="center" >
-  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/d8ab4aa6-bc99-44a1-87a6-25653d1236b4"></image>
-  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/45511edd-6b6d-485b-98ee-54c1dff3f796"></image>
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/a8c6cbad-dc7c-436f-831f-f7d624d3bf79"></image>
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/594fef2c-5db1-45f7-b79b-37ab22c83583"></image>
 </p>
 
 
@@ -21,8 +22,8 @@
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
 - 🟢 Manually Backup Server Data<br>
-- ⚪ Automatically Backup Server Data<br>
-- ⚪ AutoPrune Server Data (by quantity)<br>
+- 🟢 Automatically Backup Server Data<br>
+- 🟢 AutoPrune Server Data (by quantity)<br>
 - ⚪ Restore Server Data from Backup<br>
 </details>
 <details open>
