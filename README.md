@@ -1,4 +1,9 @@
-# Palworld Dedicated Server Tools
+<h1 align="center" >Palworld Dedicated Server Tools</h1>
+<p align="center" >
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/d8ab4aa6-bc99-44a1-87a6-25653d1236b4"></image>
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/45511edd-6b6d-485b-98ee-54c1dff3f796"></image>
+</p>
+
 
 ## Feature Roadmap
 <details open>
@@ -98,10 +103,6 @@ The remote manager does not have RCON built in. You still want to use the window
 - Enter the Local IP / RCON port / Admin
 - Click Connect
 You should now be connected to the server via RCON
-
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/75f144d2-e3d7-413b-a357-c25e38488421)
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/502ebcde-422b-444b-8574-d360b5e3c577)
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/be2c08c7-6c8c-4324-97fc-30732157f893)
 
 ## Troubleshooting:
 ### Webview2 Runtime Requirement:
