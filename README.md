@@ -1,10 +1,9 @@
 <h1 align="center" >Palworld A.D.M.I.N.</h1>
 <h6 align="center"> (Automated Deployment, Management & Installation Nexus)</h6>
 <p align="center" >
-  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/a8c6cbad-dc7c-436f-831f-f7d624d3bf79"></image>
+  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/c2984273-8b7d-4f3f-8bf7-2917abcfc10d"></image>
   <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/594fef2c-5db1-45f7-b79b-37ab22c83583"></image>
 </p>
-
 
 ## Feature Roadmap
 <details open>
