@@ -4,14 +4,14 @@
 <details open>
   <summary><b>Server Manager:<b></summary>
 <details open>
-  <summary>🟡 1-Click Installer</summary>
+  <summary>🟢 1-Click Installer</summary>
 - 🟢 Windows<br>
-- ⚪ Linux  
+- 🟢 Linux  
 </details>
 <details open>
-  <summary>🟡 1-Click Launcher</summary>
+  <summary>🟢 1-Click Launcher</summary>
 - 🟢 Windows<br>
-- ⚪ Linux  
+- 🟢 Linux  
 </details>
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
@@ -64,6 +64,16 @@
 - ⚪ display HEX UID for easy Save Identification
 </details>
 
+## **To access the Remote Server Manager:**
+- Run the binary on your host, make sure port 8210 is open and forwarded
+- Access it with your browser of choice by navigating to http://[HOSTIP]:8210
+
+_Use palworld-servertools binary after `chmod + x`_
+_Make sure to use `-r -mp [management password]` when launching remote management on  Linux_
+
+**Important:**
+The remote manager does not have RCON built in. You still want to use the windows version to access the server managed in Linux via RCON
+
 ## How to run directly from the code:
 - Install python, at least 3.11
 - Install poetry `pip install poetry` make sure you add it to your PATH
@@ -92,6 +102,15 @@ You should now be connected to the server via RCON
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/75f144d2-e3d7-413b-a357-c25e38488421)
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/502ebcde-422b-444b-8574-d360b5e3c577)
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/be2c08c7-6c8c-4324-97fc-30732157f893)
+
+## Troubleshooting:
+### Webview2 Runtime Requirement:
+If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
+You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
+![image](https://github.com/Lukium/palworld-servertools/assets/99280463/582eac35-40f5-4a17-abec-55da4389a356)
+![image](https://github.com/Lukium/palworld-servertools/assets/99280463/2f0d585e-af54-4236-9426-7cf36fee7c90)
+
+
 
 Credits:
 
