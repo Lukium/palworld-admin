@@ -29,16 +29,16 @@ LOCAL_SERVER_DATA_PATH = "Pal/Saved"
 
 BASE_URL = "https://palworld-servertools.lukium.ai"
 TEMPLATES = [
-    "base.html",
     "home.html",
     "login.html",
-    "rcon_loader.html",
+    "main.html",
     "rcon.html",
     "server_installer.html",
     "settings_gen.html",
 ]
 STATIC_FILES = [
     "images/palworld-logo.png",
+    "images/icon.png",
 ]
 
 
@@ -48,7 +48,7 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.version: str = "0.5.1"
+        self.version: str = "0.6.1"
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()

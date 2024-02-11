@@ -99,12 +99,12 @@ def check_server_running() -> dict:
                 result["status"] = "success"
                 result["value"] = True
                 app_settings.localserver.running = True
-                logging.info("Server is running: %s", result)
+                logging.info("Server checking result: %s", result)
             else:
                 result["status"] = "success"
                 result["value"] = False
                 app_settings.localserver.running = False
-                logging.info("Server is not running: %s", result)
+                logging.info("Server checking result: %s", result)
         else:
             result["status"] = "error"
             result["value"] = "Error identifying server process"
@@ -113,6 +113,74 @@ def check_server_running() -> dict:
         result["status"] = "error"
         result["value"] = "Error checking if server is running"
         logging.info("Error checking if server is running: %s", e)
+    return result
+
+
+def check_server_running_by_pid() -> dict:
+    """Check if the server is running by PID."""
+    result = {}
+    pid = app_settings.localserver.pid
+    logging.info("Checking server status by PID: %s", pid)
+    if pid:
+        if app_settings.app_os == "Windows":
+            find_cmd = f'powershell "Get-Process | Where-Object {{ $_.Id -eq {pid} }} | Select-Object Id, Name, MainWindowTitle"'  # pylint: disable=line-too-long
+            try:
+                process = subprocess.run(
+                    find_cmd,
+                    check=True,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if process.stdout:
+                    # Extract process IDs
+                    pids = re.findall(
+                        r"^\s*(\d+)", process.stdout, re.MULTILINE
+                    )
+                    if len(pids) > 0:
+                        result["status"] = "success"
+                        result["value"] = True
+                        app_settings.localserver.running = True
+                        logging.info("Server is running: %s", result)
+                    else:
+                        result["status"] = "success"
+                        result["value"] = False
+                        app_settings.localserver.running = False
+                        logging.info("Server is not running: %s", result)
+            except subprocess.CalledProcessError as e:
+                result["status"] = "error"
+                result["value"] = "Error identifying server process"
+                logging.info("Error identifying server process: %s", e)
+        else:
+            logging.info("Checking server status by PID: %s", pid)
+            find_cmd = ["ps", "-p", str(pid)]
+            try:
+                process = subprocess.run(
+                    find_cmd,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if process.stdout:
+                    logging.info("Server run check stdout: %s", process.stdout)
+                    result["status"] = "success"
+                    result["value"] = True
+                    app_settings.localserver.running = True
+                    logging.info("Server is running: %s", result)
+                else:
+                    result["status"] = "success"
+                    result["value"] = False
+                    app_settings.localserver.running = False
+                    logging.info("Server is not running: %s", result)
+            except subprocess.CalledProcessError as e:
+                result["status"] = "success"
+                result["value"] = False
+                logging.info("Error identifying server process: %s", e)
+    else:
+        result["status"] = "success"
+        result["value"] = False
+        app_settings.localserver.running = False
+        logging.info("Server is not running: %s", result)
     return result
 
 
@@ -203,6 +271,12 @@ def read_server_settings():
         result["value"] = "Error processing settings file"
         logging.error("Error processing settings file: %s", e)
     return result
+
+
+def backup_server_schedule() -> dict:
+    """Starts the backup schedule."""
+    # Run the first backup
+    backup_result = backup_server()
 
 
 def backup_server() -> dict:
@@ -504,6 +578,7 @@ def run_server(launcher_args: dict = None):
     launch_RCON = launcher_args["launch_RCON"]
     auto_backup = launcher_args["auto_backup"]
     auto_backup_delay = launcher_args["auto_backup_delay"]
+    auto_backup_quantity = launcher_args["auto_backup_quantity"]
     # Construct the command with necessary parameters and flags, add - for all flags except epicapp
     cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
     info = f"Running server. Command: {cmd}"
@@ -516,6 +591,9 @@ def run_server(launcher_args: dict = None):
         result["status"] = "success"
         result["message"] = "Server started successfully"
         app_settings.localserver.running = True
+        app_settings.localserver.run_auto_backup = auto_backup
+        app_settings.localserver.backup_interval = auto_backup_delay
+        app_settings.localserver.backup_retain_count = auto_backup_quantity
     except Exception as e:  # pylint: disable=broad-except
         info = f"Error starting server: {e}"
         logging.error(info)
@@ -684,7 +762,8 @@ def first_run():
         "UseMultithreadForDS": False,
         "launch_RCON": False,
         "auto_backup": False,
-        "auto_backup_delay": 0,
+        "auto_backup_delay": "0",
+        "auto_backup_quantity": "0",
     }
     run_server(launcher_args)
     time.sleep(10)
@@ -760,9 +839,12 @@ def identify_process_by_name(executable_name: str):
                     )
                     if len(pids) > 0:
                         pid = pids[0]
+                        app_settings.localserver.pid = pid
+                        app_settings.localserver.executable = executable_name
+                        app_settings.localserver.running = True
                         result["status"] = "success"
                         result["value"] = pid
-
+                        logging.info("Server Process ID: %s", pid)
                     else:
                         result["status"] = "success"
                         result["value"] = "No matching processes found."
@@ -799,6 +881,9 @@ def identify_process_by_name(executable_name: str):
                     pids = process.stdout.strip().split("\n")
                     if len(pids) > 0:
                         pid = pids[0]  # Take the first PID found
+                        app_settings.localserver.pid = pid
+                        app_settings.localserver.executable = executable_name
+                        app_settings.localserver.running = True
                         result["status"] = "success"
                         result["value"] = pid
                     else:

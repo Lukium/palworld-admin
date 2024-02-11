@@ -75,8 +75,8 @@ def create_app():
         @app.route("/login", methods=["GET", "POST"])
         def login():
             """Render the login page."""
-            webview_headers = session.pop("webview_headers", None)
-            management_mode = session.pop("management_mode", None)
+            webview_headers = session.get("webview_headers", None)
+            management_mode = session.get("management_mode", None)
             if request.method == "POST":
                 if (
                     request.form["password"]
