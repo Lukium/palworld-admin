@@ -30,7 +30,7 @@ from servermanager.local import (
     first_run,
     run_server,
     update_palworld_settings_ini,
-    check_server_running_by_pid,
+    check_server_running,
 )
 
 from settings import app_settings
@@ -157,7 +157,7 @@ def create_views():
             logging.info("Data: %s", data)
             result = update_palworld_settings_ini(data["data"])
         elif data["function"] == "check_server_running":
-            result = check_server_running_by_pid()
+            result = check_server_running()
         return jsonify(result)
 
     @views.route("/rcon")

@@ -11,7 +11,9 @@ from settings import app_settings
 
 def execute_rcon(ip_address, port, password, command, queue) -> None:
     """Execute the specified RCON command and put the result in the queue."""
-    logging.info("Executing RCON command: %s", command)
+    log = False
+    if log:
+        logging.info("Executing RCON command: %s", command)
     if not app_settings.localserver.connected:
         try:
             resolved_ip = resolve_address(ip_address)
@@ -21,10 +23,12 @@ def execute_rcon(ip_address, port, password, command, queue) -> None:
             logging.info("Error: %s", e)
     else:
         resolved_ip = app_settings.localserver.ip
-        logging.info("Using cached IP: %s", resolved_ip)
+        if log:
+            logging.info("Using cached IP: %s", resolved_ip)
     host_port = f"{resolved_ip}:{port}"
     result = execute(host_port, password, command).strip()
-    logging.info("Command Output: %s\n", result)
+    if log:
+        logging.info("Command Output: %s\n", result)
     if result:
         queue.put(result.strip())
 

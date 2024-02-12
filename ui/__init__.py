@@ -14,7 +14,7 @@ class BrowserManager:
         """Open the webview browser window."""
         url = "http://localhost:8210"
         self.window = webview.create_window(
-            "Palworld Dedicated Server Tools",
+            "Palworld A.D.M.I.N.",
             url=url,
             width=820,
             height=1000,

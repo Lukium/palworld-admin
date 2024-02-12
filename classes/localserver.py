@@ -26,6 +26,7 @@ class LocalServer:
         self.default_ini_path = ""
         self.connected: bool = False
         self.running: bool = False
+        self.expected_to_be_running: bool = False
         self.ip: str = ""
         self.executable: str = ""
-        self.pid = 0
+        self.pid = None

@@ -21,6 +21,9 @@ LINUX_BASE_LAUNCHER_PATH = ".steam/steam/steamapps/common/PalServer/"
 WINDOWS_LAUNCHER_FILE = "PalServer.exe"
 LINUX_LAUNCHER_FILE = "PalServer.sh"
 
+WINDOWS_SERVER_EXECUTABLE = "PalServer-Win64-Test-Cmd"
+LINUX_SERVER_EXECUTABLE = "PalServer-Linux-Test"
+
 PALWORLDSETTINGS_INI_BASE_PATH = "Pal/Saved/Config/"
 PALWORLDSETTINGS_INI_FILE = "PalWorldSettings.ini"
 DEFAULTPALWORLDSETTINGS_INI_FILE = "DefaultPalWorldSettings.ini"
@@ -53,6 +56,7 @@ class Settings:
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()
+        self.ready = False
 
         self.palworldsettings_defaults = PalWorldSettings()
         self.localserver = LocalServer()
@@ -66,6 +70,7 @@ class Settings:
         self.detect_cpu_cores()
         self.set_local_server_paths()
         self.download_ui()
+        self.ready = True
 
     def set_logging(self):
         """Set the logging configuration."""
@@ -132,6 +137,8 @@ class Settings:
                 LOCAL_SERVER_DATA_PATH,
             )
 
+            self.localserver.executable = WINDOWS_SERVER_EXECUTABLE
+
         else:
             home_dir = os.environ["HOME"]
             base_launcher_path = os.path.join(
@@ -165,6 +172,8 @@ class Settings:
                 base_launcher_path,
                 LOCAL_SERVER_DATA_PATH,
             )
+
+            self.localserver.executable = LINUX_SERVER_EXECUTABLE
 
         self.localserver.backup_path = os.path.join(
             exe_path, LOCAL_SERVER_BACKUP_PATH

@@ -23,7 +23,6 @@ def check_os() -> dict:
     os_name = app_settings.app_os
     result["status"] = "success"
     result["value"] = f"{os_name}"
-    logging.info("OS reply to UI: %s", result)
     return result
 
 
@@ -32,24 +31,17 @@ def check_steamcmd_install() -> dict:
     result = {}
     # Check if steamcmd is installed
     try:
-        logging.info(
-            "Checking SteamCMD installation in %s",
-            app_settings.localserver.steamcmd_path,
-        )
         if os.path.isfile(app_settings.localserver.steamcmd_path):
             result["status"] = "success"
             result["value"] = True
             app_settings.localserver.steamcmd_installed = True
-            logging.info("SteamCMD reply to UI: %s", result)
         else:
             result["status"] = "success"
             result["value"] = False
             app_settings.localserver.steamcmd_installed = False
-            logging.info("SteamCMD reply to UI: %s", result)
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
-        result["value"] = "Error checking SteamCMD installation."
-        logging.info("Error checking SteamCMD installation: %s", e)
+        result["value"] = f"Error checking SteamCMD installation: {e}"
     return result
 
 
@@ -58,10 +50,6 @@ def check_palworld_install() -> dict:
     result = {}
     # Check if PalWorld is installed
     try:
-        logging.info(
-            "Checking PalWorld installation in %s",
-            app_settings.localserver.ini_path,
-        )
         if os.path.isfile(app_settings.localserver.ini_path):
             # Check if the file is not empty by reading the file and checking for content
             with open(
@@ -76,161 +64,12 @@ def check_palworld_install() -> dict:
             else:
                 result["status"] = "success"
                 result["value"] = False
-            logging.info("PalWorld reply to UI: %s", result)
         else:
             result["status"] = "success"
             result["value"] = False
-            logging.info("PalWorld reply to UI: %s", result)
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
-        result["value"] = "Error checking PalWorld installation."
-        logging.info("Error checking PalWorld installation: %s", e)
-    return result
-
-
-def check_server_running() -> dict:
-    """Check if the server is running."""
-    result = {}
-    try:
-        if app_settings.app_os == "Windows":
-            identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
-        else:
-            identified = identify_process_by_name("PalServer-Linux-Test")
-        if identified["status"] == "success":
-            if identified["value"] != "No matching processes found.":
-                result["status"] = "success"
-                result["value"] = True
-                app_settings.localserver.running = True
-                logging.info("Server checking result: %s", result)
-            else:
-                result["status"] = "success"
-                result["value"] = False
-                app_settings.localserver.running = False
-                logging.info("Server checking result: %s", result)
-        else:
-            result["status"] = "error"
-            result["value"] = "Error identifying server process"
-            logging.info("Error identifying server process: %s", identified)
-    except Exception as e:  # pylint: disable=broad-except
-        result["status"] = "error"
-        result["value"] = "Error checking if server is running"
-        logging.info("Error checking if server is running: %s", e)
-    return result
-
-
-def get_cpu_time_by_pid(pid: int) -> dict:
-    """Get the CPU time by PID."""
-    result = {}
-    logging.info("Getting CPU time by PID: %s", pid)
-    if pid:
-        if app_settings.app_os == "Windows":
-            cpu_cmd = f'powershell "(Get-Process | Where-Object {{ $_.Id -eq {pid} }} | Select-Object -ExpandProperty CPU)"'  # pylint: disable=line-too-long
-            try:
-                process = subprocess.run(
-                    cpu_cmd,
-                    check=True,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                )
-                if process.stdout:
-                    cpu_time = process.stdout.strip()
-                    if cpu_time == "":
-                        cpu_time = "0"
-                    # Calculate the CPU usage in percentage using the number of cores,
-                    # time delta since last check and CPU time delta
-                    cores = app_settings.localserver.cpu_cores
-                    logging.info(
-                        "last_cpu_check: %s",
-                        app_settings.localserver.last_cpu_check,
-                    )
-                    logging.info(
-                        "last_cpu_time: %s",
-                        app_settings.localserver.last_cpu_time,
-                    )
-                    if (
-                        app_settings.localserver.last_cpu_check is not None
-                        and app_settings.localserver.last_cpu_time is not None
-                    ):
-                        time_delta = (
-                            datetime.now()
-                            - app_settings.localserver.last_cpu_check
-                        )
-                        cpu_delta = (
-                            float(cpu_time)
-                            - app_settings.localserver.last_cpu_time
-                        )
-                        cpu_usage = (
-                            cpu_delta / (time_delta.total_seconds() * cores)
-                        ) * 100
-                        cpu_usage = round(cpu_usage, 2)
-                    else:
-                        cpu_usage = 0
-                    app_settings.localserver.last_cpu_check = datetime.now()
-                    app_settings.localserver.last_cpu_time = float(cpu_time)
-                    result["status"] = "success"
-                    result["cpu_time"] = cpu_time
-                    result["cpu_usage"] = cpu_usage
-                else:
-                    result["status"] = "success"
-                    result["cpu_time"] = "0"
-                    result["cpu_usage"] = "0"
-                    logging.info("CPU time: %s", result)
-            except subprocess.CalledProcessError as e:
-                result["status"] = "error"
-                result["value"] = "Error getting CPU time"
-                logging.info("Error getting CPU time: %s", e)
-        else:
-            cpu_cmd = ["ps", "-p", str(pid), "-o", "time="]
-            try:
-                with open(
-                    f"/proc/{pid}/stat", "r", encoding="utf-8"
-                ) as stat_file:
-                    parts = stat_file.read().split()
-                    utime = int(parts[13])  # User time
-                    stime = int(parts[14])  # System time
-                    # Convert jiffies to seconds. Assume USER_HZ = 100 for simplicity.
-                    # fmt: off
-                    jiffies_per_second = os.sysconf("SC_CLK_TCK")  # pylint: disable=no-member disable=line-too-long # sysconf is actually a function of os, but pylint doesn't know that
-                    # fmt: on
-                    logging.info("jiffies_per_second: %s", jiffies_per_second)
-                    cpu_time = (utime + stime) / jiffies_per_second
-
-                # Calculate the CPU usage in percentage using the number of cores,
-                # time delta since last check and CPU time delta
-                cores = app_settings.localserver.cpu_cores
-                logging.info(
-                    "last_cpu_check: %s",
-                    app_settings.localserver.last_cpu_check,
-                )
-                logging.info(
-                    "last_cpu_time: %s", app_settings.localserver.last_cpu_time
-                )
-                if (
-                    app_settings.localserver.last_cpu_check is not None
-                    and app_settings.localserver.last_cpu_time is not None
-                ):
-                    time_delta = (
-                        datetime.now()
-                        - app_settings.localserver.last_cpu_check
-                    ).total_seconds()
-                    cpu_delta = (
-                        cpu_time - app_settings.localserver.last_cpu_time
-                    )
-                    cpu_usage = (cpu_delta / (time_delta * cores)) * 100
-                    cpu_usage = round(cpu_usage, 2)
-                else:
-                    cpu_usage = 0
-
-                app_settings.localserver.last_cpu_check = datetime.now()
-                app_settings.localserver.last_cpu_time = cpu_time
-                result["status"] = "success"
-                result["cpu_time"] = cpu_time
-                result["cpu_usage"] = cpu_usage
-            except IOError as e:
-                result["status"] = "error"
-                result["value"] = "Error accessing process stats"
-                logging.info("Error accessing process stats: %s", e)
+        result["value"] = f"Error checking PalWorld installation: {e}"
     return result
 
 
@@ -239,55 +78,194 @@ def get_ram_usage_by_pid(pid: int) -> dict:
     result = {}
     logging.info("Getting RAM usage by PID: %s", pid)
     if pid:
-        if app_settings.app_os == "Windows":
-            ram_cmd = f'powershell "(Get-Process | Where-Object {{ $_.Id -eq {pid} }} | ForEach-Object {{[math]::Round($_.WorkingSet / 1GB, 2)}})"'  # pylint: disable=line-too-long
-            try:
-                process = subprocess.run(
-                    ram_cmd,
-                    check=True,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
+        ram_cmd = ["ps", "-p", str(pid), "-o", "rss="]
+        try:
+            process = subprocess.run(
+                ram_cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            if process.stdout:
+                ram_usage = process.stdout.strip()
+                if ram_usage == "":
+                    ram_usage = "0"
+                result["status"] = "success"
+                result["value"] = str(round(int(ram_usage) / 1048576, 2))
+                logging.info("RAM usage: %s", result)
+            else:
+                result["status"] = "success"
+                result["value"] = "0"
+                logging.info("RAM usage: %s", result)
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["value"] = "Error getting RAM usage"
+            logging.info("Error getting RAM usage: %s", e)
+    return result
+
+
+def get_cpu_time_by_pid(pid: int) -> dict:
+    """Get the CPU time by PID."""
+    result = {}
+    logging.info("Getting CPU time by PID: %s", pid)
+    if pid:
+        try:
+            with open(f"/proc/{pid}/stat", "r", encoding="utf-8") as stat_file:
+                parts = stat_file.read().split()
+                utime = int(parts[13])  # User time
+                stime = int(parts[14])  # System time
+                # Convert jiffies to seconds. Assume USER_HZ = 100 for simplicity.
+                # fmt: off
+                jiffies_per_second = os.sysconf("SC_CLK_TCK")  # pylint: disable=no-member disable=line-too-long # sysconf is actually a function of os, but pylint doesn't know that
+                # fmt: on
+                logging.info("jiffies_per_second: %s", jiffies_per_second)
+                cpu_time = (utime + stime) / jiffies_per_second
+
+            # Calculate the CPU usage in percentage using the number of cores,
+            # time delta since last check and CPU time delta
+            cores = app_settings.localserver.cpu_cores
+            logging.info(
+                "last_cpu_check: %s",
+                app_settings.localserver.last_cpu_check,
+            )
+            logging.info(
+                "last_cpu_time: %s", app_settings.localserver.last_cpu_time
+            )
+            if (
+                app_settings.localserver.last_cpu_check is not None
+                and app_settings.localserver.last_cpu_time is not None
+            ):
+                time_delta = (
+                    datetime.now() - app_settings.localserver.last_cpu_check
+                ).total_seconds()
+                cpu_delta = cpu_time - app_settings.localserver.last_cpu_time
+                cpu_usage = (cpu_delta / (time_delta * cores)) * 100
+                cpu_usage = round(cpu_usage, 2)
+            else:
+                cpu_usage = 0
+
+            app_settings.localserver.last_cpu_check = datetime.now()
+            app_settings.localserver.last_cpu_time = cpu_time
+            result["status"] = "success"
+            result["cpu_time"] = cpu_time
+            result["cpu_usage"] = cpu_usage
+        except IOError as e:
+            result["status"] = "error"
+            result["value"] = "Error accessing process stats"
+            logging.info("Error accessing process stats: %s", e)
+    return result
+
+
+def process_cpu_time(cpu_time: int) -> dict:
+    """Process the CPU time."""
+    result = {}
+    cores = app_settings.localserver.cpu_cores
+    if (
+        app_settings.localserver.last_cpu_check is not None
+        and app_settings.localserver.last_cpu_time is not None
+    ):
+        time_delta = datetime.now() - app_settings.localserver.last_cpu_check
+        cpu_delta = float(cpu_time) - app_settings.localserver.last_cpu_time
+        cpu_usage = (cpu_delta / (time_delta.total_seconds() * cores)) * 100
+        cpu_usage = round(cpu_usage, 2)
+        app_settings.localserver.last_cpu_check = datetime.now()
+        app_settings.localserver.last_cpu_time = float(cpu_time)
+        result["status"] = "success"
+        result["cpu_usage"] = cpu_usage
+    else:
+        cpu_usage = 0
+        app_settings.localserver.last_cpu_check = datetime.now()
+        app_settings.localserver.last_cpu_time = float(cpu_time)
+        result["status"] = "success"
+        result["cpu_usage"] = cpu_usage
+    return result
+
+
+def check_server_running() -> dict:
+    """Check if the server is running by PID."""
+    log = False
+    result = {}
+    if not app_settings.localserver.pid:
+        identify_process_by_name()
+
+    if (
+        not app_settings.localserver.pid
+    ):  # If the PID is still not set, the server is not running
+        result["status"] = "success"
+        result["value"] = False
+        result["cpu_time"] = "0"
+        result["cpu_usage"] = "0"
+        result["ram_usage"] = "0"
+        return result
+
+    if app_settings.app_os == "Windows":
+        find_cmd = f'$PN = "{app_settings.localserver.executable}"; $CounterPaths = @("\\Process($PN)\\% Processor Time","\\Process($PN)\\Working Set"); Get-Counter -Counter $CounterPaths | ForEach-Object {{ $cpuTime = [Math]::Round($_.CounterSamples[0].CookedValue , 2); $ramUsage = $_.CounterSamples[1].CookedValue; "$cpuTime $ramUsage" }}'  # pylint: disable=line-too-long
+        if log:
+            logging.info("CMD: %s", find_cmd)
+        try:
+            process = subprocess.run(
+                ["powershell", f"{find_cmd}"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            cmd_output = process.stdout.strip()
+            if log:
+                logging.info("CMD Output: %s", cmd_output)
+            if cmd_output:
+                cpu_usage = float(cmd_output.split()[0])
+                ram = (
+                    float(cmd_output.split()[1]) / 1073741824
+                )  # Convert to GB
+                result["status"] = "success"
+                result["value"] = True
+                result["cpu_usage"] = str(cpu_usage)
+                result["ram_usage"] = str(round(ram, 2))
+                logging.info(
+                    "Server Monitoring:\nCPU Usage: %s\nRAM Usage: %s",
+                    result["cpu_usage"],
+                    result["ram_usage"],
                 )
-                if process.stdout:
-                    ram_usage = process.stdout.strip()
-                    if ram_usage == "":
-                        ram_usage = "0"
-                    result["status"] = "success"
-                    result["value"] = ram_usage
-                    logging.info("RAM usage: %s", result)
-                else:
-                    result["status"] = "success"
-                    result["value"] = "0"
-                    logging.info("RAM usage: %s", result)
-            except subprocess.CalledProcessError as e:
-                result["status"] = "error"
-                result["value"] = "Error getting RAM usage"
-                logging.info("Error getting RAM usage: %s", e)
-        else:
-            ram_cmd = ["ps", "-p", str(pid), "-o", "rss="]
-            try:
-                process = subprocess.run(
-                    ram_cmd,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                if process.stdout:
-                    ram_usage = process.stdout.strip()
-                    if ram_usage == "":
-                        ram_usage = "0"
-                    result["status"] = "success"
-                    result["value"] = str(round(int(ram_usage) / 1048576, 2))
-                    logging.info("RAM usage: %s", result)
-                else:
-                    result["status"] = "success"
-                    result["value"] = "0"
-                    logging.info("RAM usage: %s", result)
-            except subprocess.CalledProcessError as e:
-                result["status"] = "error"
-                result["value"] = "Error getting RAM usage"
-                logging.info("Error getting RAM usage: %s", e)
+            else:
+                result["status"] = "success"
+                result["value"] = False
+                result["cpu_time"] = "0"
+                result["cpu_usage"] = "0"
+                result["ram_usage"] = "0"
+                app_settings.localserver.running = False
+                app_settings.localserver.expected_to_be_running = False
+                app_settings.localserver.pid = None
+                app_settings.localserver.last_cpu_check = None
+                app_settings.localserver.last_cpu_time = None
+                if log:
+                    logging.info("Server is not running: %s", result)
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["value"] = "Error identifying server process"
+            logging.info("Error identifying server process: %s", e)
+    else:
+        pid = app_settings.localserver.pid
+        if pid:
+            cpu_result = get_cpu_time_by_pid(pid)
+            if cpu_result["status"] == "error":
+                result["status"] = "success"
+                result["value"] = False
+                result["cpu_time"] = "0"
+                result["cpu_usage"] = "0"
+                result["ram_usage"] = "0"
+                logging.info("Process appears not to be running")
+                return result
+            else:
+                logging.info("CPU Usage: %s", cpu_result)
+                result["cpu_time"] = cpu_result["cpu_time"]
+                result["cpu_usage"] = cpu_result["cpu_usage"]
+
+            ram_result = get_ram_usage_by_pid(pid)
+            if ram_result["status"] == "success":
+                logging.info("RAM Usage: %s", ram_result)
+                result["ram_usage"] = ram_result["value"]
+            result["status"] = "success"
+            result["value"] = True
     return result
 
 
@@ -384,13 +362,13 @@ def check_server_running_by_pid() -> dict:
 
 def check_install() -> dict:
     """Check if steamcmd is installed."""
+    log = False
     result = {}  # Final result to be returned
 
     # Check Installation
     os_result = check_os()
     steamcmd_result = check_steamcmd_install()
     palserver_result = check_palworld_install()
-    result_running = check_server_running()
 
     if (
         os_result["status"] == "success"
@@ -402,7 +380,6 @@ def check_install() -> dict:
         result["os"] = os_result
         result["steamcmd"] = steamcmd_result
         result["palserver"] = palserver_result
-        result["running"] = result_running
 
         # If both SteamCMD and PalServer are installed, read the settings
         if (
@@ -413,6 +390,9 @@ def check_install() -> dict:
                 "SteamCMD and PalServer are installed, reading settings."
             )
             result["settings"] = read_server_settings()
+
+        if log:
+            logging.info("Installation check result: %s", result)
     else:
         result["status"] = "error"
         result["message"] = "Error checking installation"
@@ -790,8 +770,11 @@ def install_palserver():
 
 def run_server(launcher_args: dict = None):
     """Run the server."""
+    log = True
+    app_settings.localserver.expected_to_be_running = True
     result = {}
-    logging.info("Running server. Launcher Args: %s", launcher_args)
+    if log:
+        logging.info("Running server. Launcher Args: %s", launcher_args)
     epicapp = launcher_args["epicApp"]
     useperfthreads = launcher_args["useperfthreads"]
     noasyncloadingthread = launcher_args["NoAsyncLoadingThread"]
@@ -801,22 +784,27 @@ def run_server(launcher_args: dict = None):
     auto_backup_quantity = launcher_args["auto_backup_quantity"]
     # Construct the command with necessary parameters and flags, add - for all flags except epicapp
     cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
-    info = f"Running server. Command: {cmd}"
 
     try:
-        info = f"Starting server. Command: {cmd}"
-        logging.info(info)
+        if log:
+            logging.info("Starting server with command: %s", cmd)
         # Start the process and return the process object itself
         subprocess.Popen(cmd, shell=True)
-        result["status"] = "success"
-        result["message"] = "Server started successfully"
-        app_settings.localserver.running = True
-        app_settings.localserver.run_auto_backup = auto_backup
-        app_settings.localserver.backup_interval = auto_backup_delay
-        app_settings.localserver.backup_retain_count = auto_backup_quantity
+        identified = identify_process_by_name()
+        if log:
+            logging.info("Identified: %s", identified)
+        if identified["status"] == "success":
+            result["status"] = "success"
+            result["message"] = "Server started successfully"
+            app_settings.localserver.run_auto_backup = auto_backup
+            app_settings.localserver.backup_interval = auto_backup_delay
+            app_settings.localserver.backup_retain_count = auto_backup_quantity
+        else:
+            result["status"] = "error"
+            result["message"] = "Error starting server"
     except Exception as e:  # pylint: disable=broad-except
-        info = f"Error starting server: {e}"
-        logging.error(info)
+        if log:
+            logging.error("Error starting server: %s", e)
         result["status"] = "error"
         result["message"] = "Error starting server"
     return result
@@ -974,6 +962,7 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
 def first_run():
     """Run server after clean install to create initial files."""
     result = {}
+    app_settings.localserver.expected_to_be_running = True
     logging.info("Running server for the first time to create initial files.")
     launcher_args = {
         "epicApp": False,
@@ -987,62 +976,46 @@ def first_run():
     }
     run_server(launcher_args)
     time.sleep(10)
-    if app_settings.app_os == "Windows":
-        identified = identify_process_by_name("PalServer-Win64-Test-Cmd")
-    else:
-        identified = identify_process_by_name("PalServer-Linux-Test")
-    if identified["status"] == "success":
-        info = f'Server Process ID: {identified["value"]}'
-        logging.info(info)
-        pid = identified["value"]
-        logging.info(
-            "Giving server 5 seconds to fully start, before shutting it down"
-        )
-        time.sleep(5)
-        terminated = terminate_process_by_pid(pid)
-        logging.info("Server termination status: %s", terminated)
-        if terminated:
-            copied = copy_default_settings()
-            if copied["status"] == "success":
-                settings_to_change = {  # Used to enable RCON
-                    "RCONEnabled": "True",
-                    "AdminPassword": '"admin"',
-                }
-                rcon_enabled = update_palworld_settings_ini(settings_to_change)
-                if rcon_enabled["status"] == "success":
-                    result["status"] = "success"
-                    result["message"] = "Server installed successfully"
-                    return result
-                else:
-                    result["status"] = "error"
-                    result["message"] = "Error enabling RCON on the server"
-                    return result
+
+    terminated = terminate_process_by_pid(app_settings.localserver.pid)
+    logging.info("Server termination status: %s", terminated)
+    if terminated:
+        copied = copy_default_settings()
+        if copied["status"] == "success":
+            settings_to_change = {  # Used to enable RCON
+                "RCONEnabled": "True",
+                "AdminPassword": '"admin"',
+            }
+            rcon_enabled = update_palworld_settings_ini(settings_to_change)
+            if rcon_enabled["status"] == "success":
+                result["status"] = "success"
+                result["message"] = "Server installed successfully"
+                return result
             else:
                 result["status"] = "error"
-                result["message"] = (
-                    "Error copying default settings to the server"
-                )
+                result["message"] = "Error enabling RCON on the server"
                 return result
         else:
             result["status"] = "error"
-            result["message"] = "Error terminating server"
+            result["message"] = "Error copying default settings to the server"
             return result
     else:
         result["status"] = "error"
-        result["message"] = "Error identifying server process"
+        result["message"] = "Error terminating server"
         return result
 
 
-def identify_process_by_name(executable_name: str):
+def identify_process_by_name():
     """Identify a process by its executable name."""
     result = {}
+    app_settings.localserver.pid = None
+    attempts = 0
+    max_attempts = 5
+    if not app_settings.localserver.expected_to_be_running:
+        max_attempts = 1
     if app_settings.app_os == "Windows":
-        find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.Name -eq '{executable_name}' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
-        for n in range(10):
-            info = (
-                f"Attempt {n+1}/10 to find process by name: {executable_name}"
-            )
-            logging.info(info)
+        find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.Name -eq '{app_settings.localserver.executable}' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
+        while not app_settings.localserver.pid:
             try:
                 # Find processes
                 process = subprocess.run(
@@ -1060,35 +1033,34 @@ def identify_process_by_name(executable_name: str):
                     if len(pids) > 0:
                         pid = pids[0]
                         app_settings.localserver.pid = pid
-                        app_settings.localserver.executable = executable_name
                         app_settings.localserver.running = True
                         result["status"] = "success"
                         result["value"] = pid
                         logging.info("Server Process ID: %s", pid)
+                        return result
                     else:
                         result["status"] = "success"
                         result["value"] = "No matching processes found."
+                        app_settings.localserver.running = False
+                        app_settings.localserver.pid = None
                         logging.info("No matching processes found.")
-                    return result
             except subprocess.CalledProcessError as e:
                 info = f"Failed to execute find command: {e}"
                 logging.error(info)
                 result["status"] = "error"
                 result["value"] = f"Failed to execute find command: {e}"
-                return result
-            else:
-                logging.info(
-                    "No matching processes found. Waiting 1 second to try again."
-                )
-                time.sleep(1)
+            attempts += 1
+            if attempts > max_attempts:
+                result["status"] = "error"
+                result["value"] = "Failed to find process"
+                break
+            if app_settings.localserver.expected_to_be_running:
+                logging.info("Attempts to find process: %s/5 failed", attempts)
+            time.sleep(1)
 
     else:
-        find_cmd = ["pgrep", "-f", executable_name]
-        for n in range(10):
-            info = (
-                f"Attempt {n+1}/10 to find process by name: {executable_name}"
-            )
-            logging.info(info)
+        find_cmd = ["pgrep", "-f", app_settings.localserver.executable]
+        while not app_settings.localserver.pid:
             try:
                 process = subprocess.run(
                     find_cmd,
@@ -1102,7 +1074,6 @@ def identify_process_by_name(executable_name: str):
                     if len(pids) > 0:
                         pid = pids[0]  # Take the first PID found
                         app_settings.localserver.pid = pid
-                        app_settings.localserver.executable = executable_name
                         app_settings.localserver.running = True
                         result["status"] = "success"
                         result["value"] = pid
@@ -1110,20 +1081,20 @@ def identify_process_by_name(executable_name: str):
                         result["status"] = "success"
                         result["value"] = "No matching processes found."
                         logging.info("No matching processes found.")
-                    return result
             except subprocess.CalledProcessError as e:
                 info = f"Failed to execute find command: {e}"
                 logging.error(info)
                 result["status"] = "error"
                 result["value"] = "Failed to find process due to error."
-                return result
-            time.sleep(1)  # Wait a bit before trying again if needed
-
-        # If we get here, no process was found after 10 attempts
-        logging.info("No matching processes found after 10 attempts.")
-        result["status"] = "error"
-        result["value"] = "Process not found after multiple attempts."
-        return result
+            attempts += 1
+            if attempts > max_attempts:
+                result["status"] = "error"
+                result["value"] = "Failed to find process"
+                break
+            if app_settings.localserver.expected_to_be_running:
+                logging.info("Attempts to find process: %s/5 failed", attempts)
+            time.sleep(1)
+    return result
 
 
 def terminate_process_by_pid(pid: int):
