@@ -16,7 +16,10 @@
 <details open>
   <summary>🟢 1-Click Launcher</summary>
 - 🟢 Windows<br>
-- 🟢 Linux  
+- 🟢 Linux 
+- 🟢 Auto-Restart on unexpected shutdown
+- 🟢 Server CPU Usage Monitoring
+- 🟢 Server RAM Usage Monitoring
 </details>
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
@@ -105,6 +108,9 @@ The remote manager does not have RCON built in. You still want to use the window
 You should now be connected to the server via RCON
 
 ## Troubleshooting:
+### Failure to Install/Launch Server:
+The most likely cause for this is the user running Palworld A.D.M.I.N. from the desktop, a folder in the desktop, or a folder in a windows directory that's "syncable" like Documents / Downloads / etc.<br>
+Instead I recommend creating a directory like c:\Palworld or c:\Palworld Dedicated Server.
 ### Webview2 Runtime Requirement:
 If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
 You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
