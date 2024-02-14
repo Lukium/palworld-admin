@@ -78,6 +78,7 @@
 
 ## **Installation:**
 - Simply download the binary that matches your OS and run it.
+- I recommend creating something like c:\Palworld Server, or c:\Palworld-Admin, or something simple like this
 - **IMPORTANT:** DO NOT RUN IT FROM YOUR DESKTOP, OR ANYTHING LIKE MY DOCUMENTS OR DOWNLOADS (DIRECTORIES THAT CAN BE SYNCED BY ONE DRIVE).<br>
 This will cause the Dedicated Server Install to fail.
 
