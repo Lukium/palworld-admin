@@ -1,7 +1,7 @@
 import base64
 from typing import Any, Callable
 
-from converter.lib.archive import FArchiveReader, FArchiveWriter
+from palworld_admin.converter.lib.archive import FArchiveReader, FArchiveWriter
 
 
 def custom_version_reader(reader: FArchiveReader):

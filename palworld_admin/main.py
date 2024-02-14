@@ -9,13 +9,13 @@ from pathlib import Path
 current_dir = Path(__file__).parent
 sys.path.append(str(current_dir))
 
-from settings import app_settings
-from website import flask_app
+from palworld_admin.settings import app_settings
+from palworld_admin.website import flask_app
 
-from helper.cli import parse_cli
+from palworld_admin.helper.cli import parse_cli
 
 
-from helper.threads import run_function_on_thread
+from palworld_admin.helper.threads import run_function_on_thread
 
 
 def main():

@@ -4,10 +4,13 @@ import argparse
 import json
 import os
 
-from converter.lib.gvas import GvasFile
-from converter.lib.noindent import CustomEncoder
-from converter.lib.palsav import compress_gvas_to_sav, decompress_sav_to_gvas
-from converter.lib.paltypes import (
+from palworld_admin.converter.lib.gvas import GvasFile
+from palworld_admin.converter.lib.noindent import CustomEncoder
+from palworld_admin.converter.lib.palsav import (
+    compress_gvas_to_sav,
+    decompress_sav_to_gvas,
+)
+from palworld_admin.converter.lib.paltypes import (
     PALWORLD_CUSTOM_PROPERTIES,
     PALWORLD_TYPE_HINTS,
 )

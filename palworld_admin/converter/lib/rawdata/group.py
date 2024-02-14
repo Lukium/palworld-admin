@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from converter.lib.archive import *
+from palworld_admin.converter.lib.archive import *
 
 
 def decode(

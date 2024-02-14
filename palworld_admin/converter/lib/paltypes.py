@@ -1,7 +1,7 @@
 from typing import Any, Callable
 
-from converter.lib.archive import FArchiveReader, FArchiveWriter
-from converter.lib.rawdata import (
+from palworld_admin.converter.lib.archive import FArchiveReader, FArchiveWriter
+from palworld_admin.converter.lib.rawdata import (
     base_camp,
     base_camp_module,
     build_process,

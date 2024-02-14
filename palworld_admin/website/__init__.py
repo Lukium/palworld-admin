@@ -22,8 +22,8 @@ from flask import (
 
 from waitress import serve
 
-from settings import app_settings
-from converter.convert import convert_json_to_sav
+from palworld_admin.settings import app_settings
+from palworld_admin.converter.convert import convert_json_to_sav
 
 from .views import create_views
 

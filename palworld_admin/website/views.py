@@ -13,7 +13,7 @@ from flask import (
     session,
 )
 
-from rcon import (
+from palworld_admin.rcon import (
     rcon_connect,
     rcon_broadcast,
     rcon_fetch_players,
@@ -23,7 +23,7 @@ from rcon import (
     rcon_shutdown,
 )
 
-from servermanager.local import (
+from palworld_admin.servermanager.local import (
     check_install,
     install_server,
     backup_server,
@@ -33,7 +33,7 @@ from servermanager.local import (
     check_server_running,
 )
 
-from settings import app_settings
+from palworld_admin.settings import app_settings
 
 DEFAULT_VALUES: dict = app_settings.palworldsettings_defaults.default_values
 DESCRIPTIONS: dict = app_settings.palworldsettings_defaults.descriptions

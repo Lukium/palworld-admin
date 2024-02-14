@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['palworld_admin\\main.py'],
-    pathex=[],
+    pathex=[r'C:\palworld-admin-github'],
     binaries=[],
     datas=[],
     hiddenimports=[],

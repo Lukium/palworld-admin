@@ -6,9 +6,9 @@ import os
 import platform
 import sys
 
-from classes import PalWorldSettings, LocalServer, MemoryStorage
-from helper.oscommands import detect_virtual_machine
-from ui import BrowserManager
+from palworld_admin.classes import PalWorldSettings, LocalServer, MemoryStorage
+from palworld_admin.helper.oscommands import detect_virtual_machine
+from palworld_admin.ui import BrowserManager
 
 # from website import download_templates, download_static_files
 

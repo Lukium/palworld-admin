@@ -11,10 +11,10 @@ import zipfile
 from datetime import datetime
 
 # import settings as s
-from settings import app_settings
+from palworld_admin.settings import app_settings
 
-from helper.fileprocessing import file_to_lines
-from helper.networking import get_public_ip, get_local_ip
+from palworld_admin.helper.fileprocessing import file_to_lines
+from palworld_admin.helper.networking import get_public_ip, get_local_ip
 
 
 def check_os() -> dict:

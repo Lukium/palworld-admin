@@ -4,9 +4,9 @@ import logging
 from queue import Queue
 import threading
 
-from rcon.rcon import execute, resolve_address
+from palworld_admin.rcon.rcon import execute, resolve_address
 
-from settings import app_settings
+from palworld_admin.settings import app_settings
 
 
 def execute_rcon(ip_address, port, password, command, queue) -> None:
