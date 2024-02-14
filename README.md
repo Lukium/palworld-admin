@@ -76,6 +76,11 @@
 - ⚪ display HEX UID for easy Save Identification
 </details>
 
+## **Installation:**
+- Simply download the binary that matches your OS and run it.
+- **IMPORTANT:** DO NOT RUN IT FROM YOUR DESKTOP, OR ANYTHING LIKE MY DOCUMENTS OR DOWNLOADS (DIRECTORIES THAT CAN BE SYNCED BY ONE DRIVE).<br>
+This will cause the Dedicated Server Install to fail.
+
 ## **To access the Remote Server Manager:**
 - Run the binary on your host using the -r -mp flags:<br>
   For Windows: `pal-admin.exe -r -mp [managementpassword]` _Also works with -console version_<br>
