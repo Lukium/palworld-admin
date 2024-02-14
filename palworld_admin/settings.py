@@ -57,7 +57,7 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.version: str = "0.6.4"
+        self.version: str = "0.7.0"
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()
