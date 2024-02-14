@@ -16,10 +16,7 @@
 <details open>
   <summary>🟢 1-Click Launcher</summary>
 - 🟢 Windows<br>
-- 🟢 Linux 
-- 🟢 Auto-Restart on unexpected shutdown
-- 🟢 Server CPU Usage Monitoring
-- 🟢 Server RAM Usage Monitoring
+- 🟢 Linux<br>
 </details>
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
@@ -29,9 +26,14 @@
 - ⚪ Restore Server Data from Backup<br>
 </details>
 <details open>
-  <summary>⚪ Server Auto Restart</summary>
-- ⚪ Schedule Based<br>
-- ⚪ RAM Utilization Based<br>
+  <summary>🟢 Server Performance Monitoring</summary>
+- 🟢 Server CPU Usage Monitoring<br>
+- 🟢 Server RAM Usage Monitoring
+</details>
+<details open>
+  <summary>🟢 Server Auto Restart</summary>
+- 🟢 On Unexpected Server Shutdown<br>
+- 🟢 RAM Utilization Based
 </details>
 </details>
 
@@ -107,16 +109,23 @@ The remote manager does not have RCON built in. You still want to use the window
 - Click Connect
 You should now be connected to the server via RCON
 
+
 ## Troubleshooting:
 ### Failure to Install/Launch Server:
 The most likely cause for this is the user running Palworld A.D.M.I.N. from the desktop, a folder in the desktop, or a folder in a windows directory that's "syncable" like Documents / Downloads / etc.<br>
 Instead I recommend creating a directory like c:\Palworld or c:\Palworld Dedicated Server.
+
+
 ### Webview2 Runtime Requirement:
 If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://go.microsoft.com/fwlink/p/?LinkId=2124703). More information - [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
 You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/582eac35-40f5-4a17-abec-55da4389a356)
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/2f0d585e-af54-4236-9426-7cf36fee7c90)
 
+
+### Crushed / Squeezed UI
+If the UI looks like the screenshot below, please increase the resolution of your display. If using a remote connection where you can't change the Resolution settings, you can usually do it from the Remote Client Options in the App that you use to connect (before actually making the Remote Desktop Connection):
+![image](https://github.com/Lukium/palworld-admin/assets/99280463/59a62462-498e-4795-a575-5d803a5afef1)
 
 
 Credits:
