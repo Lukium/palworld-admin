@@ -199,7 +199,11 @@ def check_server_running() -> dict:
         return result
 
     if app_settings.app_os == "Windows":
-        find_cmd = f'$PN = "{app_settings.localserver.executable}"; $CounterPaths = @("\\Process($PN)\\% Processor Time","\\Process($PN)\\Working Set"); Get-Counter -Counter $CounterPaths | ForEach-Object {{ $cpuTime = [Math]::Round($_.CounterSamples[0].CookedValue , 2); $ramUsage = $_.CounterSamples[1].CookedValue; "$cpuTime $ramUsage" }}'  # pylint: disable=line-too-long
+        if app_settings.localserver.use_get_counters:
+            find_cmd = f'$PN = "{app_settings.localserver.executable}"; $CounterPaths = @("\\Process($PN)\\% Processor Time","\\Process($PN)\\Working Set - Private"); Get-Counter -Counter $CounterPaths | ForEach-Object {{ $cpuTime = [Math]::Round($_.CounterSamples[0].CookedValue , 2); $ramUsage = $_.CounterSamples[1].CookedValue; "$cpuTime $ramUsage" }}'  # pylint: disable=line-too-long
+        else:
+            find_cmd = f'$PN = "{app_settings.localserver.executable}"; Get-CimInstance Win32_PerfFormattedData_PerfProc_Process | Where-Object {{ $_.Name -eq $PN }} | Select-Object -Property Name, PercentProcessorTime, WorkingSet -First 1 | ForEach-Object {{ $cpuUsage = $_.PercentProcessorTime; $workingSetSize = $_.WorkingSet; "$cpuUsage $workingSetSize" }}'  # pylint: disable=line-too-long
+
         if log:
             logging.info("CMD: %s", find_cmd)
         try:
@@ -208,12 +212,21 @@ def check_server_running() -> dict:
                 check=True,
                 capture_output=True,
                 text=True,
+                shell=True,
             )
             cmd_output = process.stdout.strip()
             if log:
                 logging.info("CMD Output: %s", cmd_output)
             if cmd_output:
-                cpu_usage = float(cmd_output.split()[0])
+                # Handle CPU Usage
+                if app_settings.localserver.is_virtual_machine:
+                    cpu_usage = (
+                        float(cmd_output.split()[0])
+                        / app_settings.localserver.cpu_cores
+                    )  # Normalize CPU usage for virtual machines
+                else:
+                    cpu_usage = float(cmd_output.split()[0])  # CPU usage
+                cpu_usage = round(cpu_usage, 2)  # Round to 2 decimal places
                 ram = (
                     float(cmd_output.split()[1]) / 1073741824
                 )  # Convert to GB
@@ -221,11 +234,12 @@ def check_server_running() -> dict:
                 result["value"] = True
                 result["cpu_usage"] = str(cpu_usage)
                 result["ram_usage"] = str(round(ram, 2))
-                logging.info(
-                    "Server Monitoring:\nCPU Usage: %s\nRAM Usage: %s",
-                    result["cpu_usage"],
-                    result["ram_usage"],
-                )
+                if log:
+                    logging.info(
+                        "Server Monitoring:\nCPU Usage: %s\nRAM Usage: %s",
+                        result["cpu_usage"],
+                        result["ram_usage"],
+                    )
             else:
                 result["status"] = "success"
                 result["value"] = False
@@ -240,8 +254,18 @@ def check_server_running() -> dict:
                 if log:
                     logging.info("Server is not running: %s", result)
         except subprocess.CalledProcessError as e:
+            # If Get-Counter fails, switch to WMI and try again
+            if app_settings.localserver.use_get_counters:
+                app_settings.localserver.use_get_counters = False
+                logging.info(
+                    "Switching to WMI from Get-Counters and trying again..."
+                )
+                return check_server_running()
+
             result["status"] = "error"
-            result["value"] = "Error identifying server process"
+            result["value"] = (
+                "Can't identify server process using Get-Counter or WMI"
+            )
             logging.info("Error identifying server process: %s", e)
     else:
         pid = app_settings.localserver.pid

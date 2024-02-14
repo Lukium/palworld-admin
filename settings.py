@@ -7,9 +7,14 @@ import platform
 import sys
 
 from classes import PalWorldSettings, LocalServer, MemoryStorage
+from helper.oscommands import detect_virtual_machine
 from ui import BrowserManager
 
 # from website import download_templates, download_static_files
+
+# Get the waitress logger
+logger = logging.getLogger("waitress")
+logger.setLevel(logging.ERROR)  # Only show errors and above
 
 WINDOWS_STEAMCMD_PATH = "steamcmd/steamcmd.exe"
 LINUX_STEAMCMD_PATH = "/usr/games/steamcmd"
@@ -52,11 +57,12 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.version: str = "0.6.2"
+        self.version: str = "0.6.4"
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()
         self.ready = False
+        self.force_error = False
 
         self.palworldsettings_defaults = PalWorldSettings()
         self.localserver = LocalServer()
@@ -67,6 +73,7 @@ class Settings:
         self.set_logging()
         self.set_pyinstaller_mode()
         self.set_app_os()
+        self.detect_virtual_machine()
         self.detect_cpu_cores()
         self.set_local_server_paths()
         self.download_ui()
@@ -221,6 +228,15 @@ class Settings:
         if not self.dev:
             self.memorystorage.download_static_files()
             self.memorystorage.download_templates()
+
+    def detect_virtual_machine(self):
+        """Detect if the server is running in a virtual machine."""
+        detection = detect_virtual_machine(self.app_os)
+        if detection["status"] == "success":
+            self.localserver.is_virtual_machine = detection["value"]
+        logging.info(
+            "Virtual Machine: %s", self.localserver.is_virtual_machine
+        )
 
     def detect_cpu_cores(self):
         """Detect the number of CPU cores."""

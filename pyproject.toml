@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "kivy-rcon"
-version = "0.1.0"
+name = "palworld-admin"
+version = "0.6.4"
 description = ""
 authors = ["Lukium <mrlukium@outlook.com>"]
 license = "Expressed Permission Only"

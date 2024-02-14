@@ -10,6 +10,8 @@ class LocalServer:
         self.last_backup: datetime.datetime = None
         self.last_cpu_check: datetime.datetime = None
         self.last_cpu_time: float = None
+        self.use_get_counters: bool = True
+        self.is_virtual_machine: bool = False
         self.cpu_cores = 0
         self.management_mode = ""
         self.management_password = ""
