@@ -1,6 +1,6 @@
 <h1 align="center" >Palworld A.D.M.I.N.</h1>
-<h6 align="center"> (Automated Deployment, Management & Installation Nexus)</h6>
-<p align="center" >
+<p align="center" >(Automated Deployment, Management & Installation Nexus)
+
   <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/c2984273-8b7d-4f3f-8bf7-2917abcfc10d"></image>
   <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/33a35f09-20b0-4048-8531-5420bfd4f658"></image>
 </p>
@@ -16,7 +16,10 @@
 <details open>
   <summary>🟢 1-Click Launcher</summary>
 - 🟢 Windows<br>
-- 🟢 Linux  
+- 🟢 Linux 
+- 🟢 Auto-Restart on unexpected shutdown
+- 🟢 Server CPU Usage Monitoring
+- 🟢 Server RAM Usage Monitoring
 </details>
 <details open>
   <summary>🟡 Data Backup & Restore</summary>
@@ -70,11 +73,11 @@
 </details>
 
 ## **To access the Remote Server Manager:**
-- Run the binary on your host, make sure port 8210 is open and forwarded
+- Run the binary on your host using the -r -mp flags:<br>
+  For Windows: `pal-admin.exe -r -mp [managementpassword]` _Also works with -console version_<br>
+  For Linux: `pal-admin -r -mp [managementpassword]` _Make sure to `chmod + x` first_
+- Make sure port 8210 is open and forwarded
 - Access it with your browser of choice by navigating to http://[HOSTIP]:8210
-
-_Use palworld-servertools binary after `chmod + x`_
-_Make sure to use `-r -mp [management password]` when launching remote management on  Linux_
 
 **Important:**
 The remote manager does not have RCON built in. You still want to use the windows version to access the server managed in Linux via RCON
@@ -105,8 +108,11 @@ The remote manager does not have RCON built in. You still want to use the window
 You should now be connected to the server via RCON
 
 ## Troubleshooting:
+### Failure to Install/Launch Server:
+The most likely cause for this is the user running Palworld A.D.M.I.N. from the desktop, a folder in the desktop, or a folder in a windows directory that's "syncable" like Documents / Downloads / etc.<br>
+Instead I recommend creating a directory like c:\Palworld or c:\Palworld Dedicated Server.
 ### Webview2 Runtime Requirement:
-If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
+If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://go.microsoft.com/fwlink/p/?LinkId=2124703). More information - [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
 You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/582eac35-40f5-4a17-abec-55da4389a356)
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/2f0d585e-af54-4236-9426-7cf36fee7c90)
