@@ -119,19 +119,24 @@ You should now be connected to the server via RCON
 
 
 ## Troubleshooting:
-### Failure to Install/Launch Server:
+### 1. Failure to Install/Launch Server:
 The most likely cause for this is the user running Palworld A.D.M.I.N. from the desktop, a folder in the desktop, or a folder in a windows directory that's "syncable" like Documents / Downloads / etc.<br>
-Instead I recommend creating a directory like c:\Palworld or c:\Palworld Dedicated Server.
+Instead I recommend creating a directory like c:\Palworld-Admin or c:\Palworld Server.
 
 
-### Webview2 Runtime Requirement:
+### 2. Undefined values in Server Manager after importing server (See screenshot below):
+This might happen if you have changed the default formatting on the PalWorldSettings.ini file. Palworld A.D.M.N.I.N. expects the file to be in its original formatting. The values can all be changed, but the formatting must remain intact (All options in a single line)
+![image](https://github.com/Lukium/palworld-admin/assets/99280463/ca9facea-c3c4-4550-b828-8db4810c8eab)
+
+
+### 3. Webview2 Runtime Requirement:
 If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://go.microsoft.com/fwlink/p/?LinkId=2124703). More information - [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
 You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/582eac35-40f5-4a17-abec-55da4389a356)
 ![image](https://github.com/Lukium/palworld-servertools/assets/99280463/2f0d585e-af54-4236-9426-7cf36fee7c90)
 
 
-### Crushed / Squeezed UI
+### 4. Crushed / Squeezed UI
 If the UI looks like the screenshot below, please increase the resolution of your display. If using a remote connection where you can't change the Resolution settings, you can usually do it from the Remote Client Options in the App that you use to connect (before actually making the Remote Desktop Connection):
 ![image](https://github.com/Lukium/palworld-admin/assets/99280463/59a62462-498e-4795-a575-5d803a5afef1)
 
