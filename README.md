@@ -1,6 +1,8 @@
 <h1 align="center" >Palworld A.D.M.I.N.</h1>
 <p align="center" >(Automated Deployment, Management & Installation Nexus)
 
+[![PyPI version](https://badge.fury.io/py/palworld_admin.svg)](https://badge.fury.io/py/palworld_admin)
+
   <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/c2984273-8b7d-4f3f-8bf7-2917abcfc10d"></image>
   <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/33a35f09-20b0-4048-8531-5420bfd4f658"></image>
 </p>
