@@ -35,10 +35,14 @@ def detect_virtual_machine(operating_system: str) -> bool:
                 check=True,
                 startupinfo=startupinfo,
                 text=True,
-                # shell=True,
             )
             output = process.stdout.strip()
+            # Check if the output is in the VM models
             if output in vm_models:
+                result["value"] = True
+            # Check if any of the VM models are in the output
+            # This is for when the model is not an exact match
+            elif any(vm_model in output for vm_model in vm_models):
                 result["value"] = True
             else:
                 result["value"] = False
