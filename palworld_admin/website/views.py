@@ -33,6 +33,7 @@ from palworld_admin.servermanager.local import (
     check_server_running,
 )
 
+from palworld_admin.helper.dbmanagement import get_stored_default_settings
 from palworld_admin.settings import app_settings
 
 DEFAULT_VALUES: dict = app_settings.palworldsettings_defaults.default_values
@@ -158,6 +159,18 @@ def create_views():
             result = update_palworld_settings_ini(data["data"])
         elif data["function"] == "check_server_running":
             result = check_server_running()
+        return jsonify(result)
+
+    @views.route("/query-db", methods=["POST"])
+    @maybe_requires_auth
+    def query_db():
+        """Query the database."""
+        log = True
+        if log:
+            logging.info("Querying the database. Data: %s", request.json)
+        data = request.json
+        if data["function"] == "get_default_settings":
+            result = get_stored_default_settings(data["data"]["model"])
         return jsonify(result)
 
     @views.route("/rcon")

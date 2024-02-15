@@ -13,6 +13,7 @@ from datetime import datetime
 # import settings as s
 from palworld_admin.settings import app_settings
 
+from palworld_admin.helper.dbmanagement import save_user_settings_to_db
 from palworld_admin.helper.fileprocessing import file_to_lines
 from palworld_admin.helper.networking import get_public_ip, get_local_ip
 
@@ -823,6 +824,7 @@ def run_server(launcher_args: dict = None):
             app_settings.localserver.run_auto_backup = auto_backup
             app_settings.localserver.backup_interval = auto_backup_delay
             app_settings.localserver.backup_retain_count = auto_backup_quantity
+            save_user_settings_to_db({"launcher_options": launcher_args})
         else:
             result["status"] = "error"
             result["message"] = "Error starting server"
@@ -993,7 +995,7 @@ def first_run():
         "useperfthreads": False,
         "NoAsyncLoadingThread": False,
         "UseMultithreadForDS": False,
-        "launch_RCON": False,
+        "launch_rcon": False,
         "auto_backup": False,
         "auto_backup_delay": "0",
         "auto_backup_quantity": "0",

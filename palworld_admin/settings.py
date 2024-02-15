@@ -57,7 +57,8 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.version: str = "0.7.0"
+        self.version: str = "0.7.2"
+        self.exe_path: str = ""
         self.app_os = ""
         self.server_os = ""
         self.main_ui = BrowserManager()
@@ -105,6 +106,7 @@ class Settings:
             exe_path = os.path.dirname(sys.executable)
         else:
             exe_path = os.getcwd()
+        self.exe_path = exe_path
         windows_or_linux = "Windows" if self.app_os == "Windows" else "Linux"
         # Set the launcher path and steamcmd path based on the operating system
         if windows_or_linux == "Windows":

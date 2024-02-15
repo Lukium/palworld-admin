@@ -4,8 +4,8 @@ import logging
 from queue import Queue
 import threading
 
+from palworld_admin.helper.dbmanagement import save_user_settings_to_db
 from palworld_admin.rcon.rcon import execute, resolve_address
-
 from palworld_admin.settings import app_settings
 
 
@@ -104,6 +104,15 @@ def rcon_connect(ip_address, port, password) -> dict:
         reply["message"] = "Connected to server successfully"
         reply["server_name"] = result.split("]")[1].strip()
         reply["server_version"] = result.split("[")[1].split("]")[0].strip()
+        save_user_settings_to_db(
+            {
+                "rcon_last_connection": {
+                    "host": ip_address,
+                    "port": port,
+                    "password": password,
+                }
+            }
+        )
 
     return reply
 
