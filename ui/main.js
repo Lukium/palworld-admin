@@ -86,5 +86,20 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+    // Post to /shutdown to shutdown the server
+    const http = require('http');
+    const options = {
+        hostname: '127.0.0.1',
+        port: 8210,
+        path: '/shutdown',
+        method: 'POST',
+    };
+    const req = http.request(options, (res) => {
+        console.log(`statusCode: ${res.statusCode}`);
+    });
+    req.on('error', (error) => {
+        console.error(error);
+    });
+    req.end();    
     app.isQuitting = true;
 });

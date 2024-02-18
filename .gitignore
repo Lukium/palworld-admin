@@ -13,6 +13,12 @@ palworld_admin/website/templates/
 # Built Electron UI (files too large for github)
 ui/palworld-admin-ui-win32-x64/
 
+# User db
+palworld-admin.db
+
+# Poetry lock file
+poetry.lock
+
 # Node Modules
 node_modules/
 

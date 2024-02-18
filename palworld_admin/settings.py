@@ -6,6 +6,9 @@ import os
 import platform
 import subprocess
 import sys
+import time
+
+from threading import Thread
 
 from palworld_admin.classes import PalWorldSettings, LocalServer, MemoryStorage
 from palworld_admin.helper.oscommands import detect_virtual_machine
@@ -56,7 +59,7 @@ class Settings:
     This class is used to store and manage the server settings."""
 
     def __init__(self):
-        self.dev: bool = False
+        self.dev: bool = True
         self.no_ui: bool = False
         self.version: str = "0.8.0"
         self.exe_path: str = ""
@@ -73,6 +76,8 @@ class Settings:
 
         self.pyinstaller_mode: bool = False
 
+        self.shutdown_requested = False
+
         self.set_logging()
         self.set_pyinstaller_mode()
         self.set_app_os()
@@ -81,6 +86,7 @@ class Settings:
         self.set_local_server_paths()
         self.download_ui()
         self.launch_ui()
+        self.monitor_shutdown()
         self.ready = True
 
     def set_logging(self):
@@ -277,6 +283,25 @@ class Settings:
                 sys.exit(1)
         else:  # Linux
             pass  # No UI for Linux
+
+    def monitor_shutdown(self):
+        """Monitor the shutdown status of the UI."""
+
+        def monitor():
+            while not self.shutdown_requested:
+                logging.info("Monitoring UI.")
+                time.sleep(1)
+            logging.info("Shutdown requested, waiting 1 second.")
+            time.sleep(1)  # Wait for the UI to close
+            # Get PID of own process
+            pid = os.getpid()
+            logging.info("Terminating own Process with Pid: %s", pid)
+            if app_settings.app_os == "Windows":
+                os.system(f"taskkill /F /PID {pid}")
+            else:
+                os.system(f"kill -9 {pid}")
+
+        Thread(target=monitor, daemon=True).start()
 
 
 app_settings = Settings()

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "palworld_admin"
-version = "0.8.0"
+version = "0.8.1"
 description = "Palworld Admin is a GUI to manage your Palworld Dedicated Server, including deployment, configuration, monitoring and backups."
 authors = ["Lukium <mrlukium@outlook.com>"]
 license = "Expressed Permission Only"
@@ -16,6 +16,8 @@ requests = "^2.31.0"
 pillow = "^10.2.0"
 pyjwt = "^2.8.0"
 flask-sqlalchemy = "^3.1.1"
+flask-socketio = "^5.3.6"
+eventlet = "^0.35.1"
 
 [tool.poetry.dev-dependencies]
 pyinstaller = "^6.3.0"

@@ -5,9 +5,11 @@ import json
 import logging
 from mimetypes import guess_type
 import os
+import sys
 import uuid
 
 from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO
 
 from flask import (
     Flask,
@@ -26,7 +28,13 @@ from waitress import serve
 
 from palworld_admin.settings import app_settings
 from palworld_admin.converter.convert import convert_json_to_sav
-from palworld_admin.classes import db, LauncherSettings, RconSettings, Connection, Settings
+from palworld_admin.classes import (
+    db,
+    LauncherSettings,
+    RconSettings,
+    Connection,
+    Settings,
+)
 
 from .views import create_views
 
@@ -34,87 +42,13 @@ from .views import create_views
 # Serve the Flask app with Waitress
 def flask_app():
     """Run the Flask app with Waitress."""
-    app = create_app()
-    serve(app, host="0.0.0.0", port=8210)
+    # app = create_app()
+    # serve(app, host="0.0.0.0", port=8210)
 
-
-def initialize_database_defaults():
-    """Initialize default records for the database."""
-    # Check if LauncherSettings exists, if not, create a default record
-    if not LauncherSettings.query.first():
-        initial_launcher_settings = LauncherSettings(
-            launch_rcon=True,
-            epicApp=True,
-            useperfthreads=True,
-            NoAsyncLoadingThread=True,
-            UseMultithreadForDS=True,
-            auto_backup=True,
-            auto_backup_delay=3600,  # Default delay in seconds
-            auto_backup_quantity=48,  # Default number of backups to keep
-            auto_restart_triggers=True,
-            ram_restart_trigger=0.0  # Default RAM usage trigger for restart, in GB
-        )
-        db.session.add(initial_launcher_settings)
-
-    # Commit here to ensure LauncherSettings exists before creating Settings
-    db.session.commit()
-
-    # Check if Connection exists, if not, create a default record
-    if not Connection.query.first():
-        initial_connection = Connection(
-            name="Last Connection",
-            host="127.0.0.1",
-            port=25575,
-            password="admin"
-        )
-        db.session.add(initial_connection)
-
-    # Commit here to ensure Connection exists before creating RconSettings
-    db.session.commit()
-
-    # Ensure there's a RconSettings record linked to the default Connection
-    if not RconSettings.query.first():
-        connection = Connection.query.first()  # Assuming the first connection is the default
-        initial_rcon_settings = RconSettings(connection_id=connection.id)
-        db.session.add(initial_rcon_settings)
-
-    # Commit here to ensure RconSettings exists before creating Settings
-    db.session.commit()
-
-    # Ensure there's a Settings record linking LauncherSettings and RconSettings
-    if not Settings.query.first():
-        launcher_settings = LauncherSettings.query.first()
-        rcon_settings = RconSettings.query.first()
-        initial_settings = Settings(
-            launcher_settings_id=launcher_settings.id,
-            rcon_settings_id=rcon_settings.id
-        )
-        db.session.add(initial_settings)
-
-    db.session.commit()
-
-def create_app():
-    """Create the Flask app."""
-
-    if not app_settings.dev:
-        app = Flask(__name__, static_folder=None)
-    else:
+    if app_settings.dev:
         app = Flask(__name__)
-
-    views = create_views()
-    app.register_blueprint(views, url_prefix="/")
-
-    app.secret_key = uuid.uuid4().hex
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f"sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}"
-    )
-    db.init_app(app)
-
-    with app.app_context():
-        db.create_all()
-        initialize_database_defaults()
-
-    if not app_settings.dev:
+    else:
+        app = Flask(__name__, static_folder=None)
         # Serve the templates from memory that were downloaded from the remote server
         app.jinja_loader = app_settings.memorystorage.template_loader
 
@@ -134,6 +68,35 @@ def create_app():
                 return Response(content, mimetype=mimetype)
             else:
                 abort(404)
+
+    socketio = SocketIO(app)
+
+    @app.route("/shutdown", methods=["POST"])
+    def shutdown():
+        logging.info("Shutting down the server...")
+        app_settings.shutdown_requested = True
+
+        return "Server shutting down..."
+
+    # Import the views and register the blueprint
+    views = create_views()
+    app.register_blueprint(views, url_prefix="/")
+
+    # Set the secret key to a random UUID
+    app.secret_key = uuid.uuid4().hex
+
+    # Set the sqlite database URI and initialize the database
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
+    )
+    db.init_app(app)
+    with app.app_context():
+        db.create_all()
+        initialize_database_defaults()
+
+    # def send_to_frontend(event, data, namespace: str = "/", room: str = None):
+    #     """Send data to the frontend."""
+    #     socketio.emit(event, data, namespace=namespace, room=room)
 
     if app_settings.localserver.management_mode == "remote":
 
@@ -170,7 +133,6 @@ def create_app():
     def favicon():
         """Serve the favicon."""
         return redirect(url_for("static", filename="images/favicon.ico"))
-    
 
     @app.route("/generate_sav", methods=["POST"])
     def generate_sav():
@@ -347,4 +309,67 @@ def create_app():
             download_name="WorldOption.sav",
         )
 
-    return app
+    # Set socketIO to use the Flask app
+
+    if app_settings.dev:
+        socketio.run(app, host="0.0.0.0", port=8210, debug=True)
+    else:
+        socketio.run(app, host="0.0.0.0", port=8210, debug=False)
+
+
+def initialize_database_defaults():
+    """Initialize default records for the database."""
+    # Check if LauncherSettings exists, if not, create a default record
+    if not LauncherSettings.query.first():
+        initial_launcher_settings = LauncherSettings(
+            launch_rcon=True,
+            epicApp=True,
+            useperfthreads=True,
+            NoAsyncLoadingThread=True,
+            UseMultithreadForDS=True,
+            auto_backup=True,
+            auto_backup_delay=3600,  # Default delay in seconds
+            auto_backup_quantity=48,  # Default number of backups to keep
+            auto_restart_triggers=True,
+            ram_restart_trigger=0.0,  # Default RAM usage trigger for restart, in GB
+        )
+        db.session.add(initial_launcher_settings)
+
+    # Commit here to ensure LauncherSettings exists before creating Settings
+    db.session.commit()
+
+    # Check if Connection exists, if not, create a default record
+    if not Connection.query.first():
+        initial_connection = Connection(
+            name="Last Connection",
+            host="127.0.0.1",
+            port=25575,
+            password="admin",
+        )
+        db.session.add(initial_connection)
+
+    # Commit here to ensure Connection exists before creating RconSettings
+    db.session.commit()
+
+    # Ensure there's a RconSettings record linked to the default Connection
+    if not RconSettings.query.first():
+        connection = (
+            Connection.query.first()
+        )  # Assuming the first connection is the default
+        initial_rcon_settings = RconSettings(connection_id=connection.id)
+        db.session.add(initial_rcon_settings)
+
+    # Commit here to ensure RconSettings exists before creating Settings
+    db.session.commit()
+
+    # Ensure there's a Settings record linking LauncherSettings and RconSettings
+    if not Settings.query.first():
+        launcher_settings = LauncherSettings.query.first()
+        rcon_settings = RconSettings.query.first()
+        initial_settings = Settings(
+            launcher_settings_id=launcher_settings.id,
+            rcon_settings_id=rcon_settings.id,
+        )
+        db.session.add(initial_settings)
+
+    db.session.commit()
