@@ -166,6 +166,12 @@ def create_app():
             )  # Remove 'authenticated' from session
             return redirect(url_for("login"))
 
+    @app.route("/favicon.ico")
+    def favicon():
+        """Serve the favicon."""
+        return redirect(url_for("static", filename="images/favicon.ico"))
+    
+
     @app.route("/generate_sav", methods=["POST"])
     def generate_sav():
         """Generate WorldOption.sav and return it as a file download."""

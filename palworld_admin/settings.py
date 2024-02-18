@@ -4,13 +4,13 @@ import logging
 import multiprocessing
 import os
 import platform
+import subprocess
 import sys
 
 from palworld_admin.classes import PalWorldSettings, LocalServer, MemoryStorage
 from palworld_admin.helper.oscommands import detect_virtual_machine
-from palworld_admin.ui import BrowserManager
 
-# from website import download_templates, download_static_files
+# from palworld_admin.ui import BrowserManager
 
 # Get the waitress logger
 logger = logging.getLogger("waitress")
@@ -57,11 +57,13 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.version: str = "0.7.2"
+        self.no_ui: bool = False
+        self.version: str = "0.8.0"
         self.exe_path: str = ""
         self.app_os = ""
         self.server_os = ""
-        self.main_ui = BrowserManager()
+        # self.main_ui = BrowserManager()
+        self.main_ui = None
         self.ready = False
         self.force_error = False
 
@@ -78,6 +80,7 @@ class Settings:
         self.detect_cpu_cores()
         self.set_local_server_paths()
         self.download_ui()
+        self.launch_ui()
         self.ready = True
 
     def set_logging(self):
@@ -244,6 +247,36 @@ class Settings:
         """Detect the number of CPU cores."""
         self.localserver.cpu_cores = multiprocessing.cpu_count()
         logging.info("CPU cores: %s", self.localserver.cpu_cores)
+
+    def launch_ui(self):
+        """Launch the main UI."""
+        # If the app is being built for pip, then don't launch the UI
+        if self.no_ui:
+            return
+        if self.app_os == "Windows":
+            try:
+                if self.pyinstaller_mode:
+                    ui_path = os.path.join(
+                        sys._MEIPASS,  # pylint: disable=protected-access
+                        "ui",
+                        "palworld-admin-ui.exe",
+                    )
+                else:
+                    ui_path = os.path.join(
+                        self.exe_path,
+                        "ui",
+                        "palworld-admin-ui-win32-x64",
+                        "palworld-admin-ui.exe",
+                    )
+
+                logging.info("Launching UI: %s", ui_path)
+                self.main_ui = subprocess.Popen(ui_path)
+                logging.info("Launched UI.")
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error("Failed to launch UI: %s", e)
+                sys.exit(1)
+        else:  # Linux
+            pass  # No UI for Linux
 
 
 app_settings = Settings()

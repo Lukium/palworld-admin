@@ -6,6 +6,16 @@ __pycache__/
 # C extensions
 *.so
 
+# UI Served by Server
+palworld_admin/website/static/
+palworld_admin/website/templates/
+
+# Built Electron UI (files too large for github)
+ui/palworld-admin-ui-win32-x64/
+
+# Node Modules
+node_modules/
+
 # Distribution / packaging
 .Python
 build/

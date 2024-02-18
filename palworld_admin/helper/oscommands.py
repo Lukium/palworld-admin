@@ -3,6 +3,8 @@
 import logging
 import subprocess
 
+NON_VM_MODELS_REQUIRING_CORE_DIVISION = ["MS-7D42"]
+
 
 def detect_virtual_machine(operating_system: str) -> bool:
     """Detect if the server is running in a virtual machine."""

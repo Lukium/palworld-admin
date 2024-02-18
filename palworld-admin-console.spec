@@ -3,9 +3,9 @@
 
 a = Analysis(
     ['palworld_admin\\main.py'],
-    pathex=[r'C:\palworld-admin-github'],
+    pathex=[r'C:\palworld-admin-electron'],
     binaries=[],
-    datas=[],
+    datas=[(r'C:\palworld-admin-electron\ui\palworld-admin-ui-win32-x64', 'ui')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
