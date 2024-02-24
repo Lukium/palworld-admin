@@ -3,8 +3,9 @@
 
 [![PyPI version](https://badge.fury.io/py/palworld_admin.svg)](https://badge.fury.io/py/palworld_admin)
 
-  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/c2984273-8b7d-4f3f-8bf7-2917abcfc10d"></image>
-  <image src="https://github.com/Lukium/palworld-servertools/assets/99280463/33a35f09-20b0-4048-8531-5420bfd4f658"></image>
+
+  <image src="https://github.com/Lukium/palworld-admin/assets/99280463/55453c83-f0c4-44e1-b841-b15305243fe3"></image>
+  <image src="https://github.com/Lukium/palworld-admin/assets/99280463/ec62e3fc-6e90-4985-96ef-71b0cfbc6508"></image>
 </p>
 
 ## Feature Roadmap
@@ -21,11 +22,11 @@
 - 🟢 Linux<br>
 </details>
 <details open>
-  <summary>🟡 Data Backup & Restore</summary>
+  <summary>🟢 Data Backup & Restore</summary>
 - 🟢 Manually Backup Server Data<br>
 - 🟢 Automatically Backup Server Data<br>
 - 🟢 AutoPrune Server Data (by quantity)<br>
-- ⚪ Restore Server Data from Backup<br>
+- 🟢 Restore Server Data from Backup<br>
 </details>
 <details open>
   <summary>🟢 Server Performance Monitoring</summary>
