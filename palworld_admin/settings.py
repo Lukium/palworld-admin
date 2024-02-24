@@ -58,7 +58,7 @@ class Settings:
     def __init__(self):
         self.dev: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.8.1"
+        self.version: str = "0.8.2"
         self.exe_path: str = ""
         self.app_os = ""
         self.server_os = ""
@@ -172,7 +172,10 @@ class Settings:
             )
 
             # Set the steamcmd path based on the operating system
-            self.localserver.steamcmd_path = LINUX_STEAMCMD_PATH
+            # self.localserver.steamcmd_path = LINUX_STEAMCMD_PATH
+            self.localserver.steamcmd_path = os.path.join(
+                home_dir, ".local/share/Steam/steamcmd/steamcmd.sh"
+            )
 
             # Set the default PalWorldSettings.ini path based on the operating system
             self.localserver.default_ini_path = os.path.join(

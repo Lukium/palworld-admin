@@ -1,5 +1,6 @@
 {
-    "name": "electron",
+    "name": "palworld-admin-ui",
+    "productName": "Palworld ADMIN",
     "version": "1.0.0",
     "description": "",
     "main": "main.js",

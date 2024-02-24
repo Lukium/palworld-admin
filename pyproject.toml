@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "palworld_admin"
-version = "0.8.1"
+version = "0.8.2"
 description = "Palworld Admin is a GUI to manage your Palworld Dedicated Server, including deployment, configuration, monitoring and backups."
 authors = ["Lukium <mrlukium@outlook.com>"]
 license = "Expressed Permission Only"

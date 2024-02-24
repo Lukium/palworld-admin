@@ -1,12 +1,14 @@
 """ This file is the entry point for the application.
 It launches the Flask app and then the UI for the app. """
 
-from flask_socketio import SocketIO
 import os
 import platform
+import subprocess
 import sys
 import time
 from pathlib import Path
+
+from flask_socketio import SocketIO
 
 # Add the directory containing this file to the Python path
 current_dir = Path(__file__).parent
@@ -30,6 +32,10 @@ def main():
     app_settings.set_management_password(args["ManagementPassword"])
 
     if args["MigrateDatabase"]:
+        # Terminate the UI if only the database migration is required
+        ui: subprocess.Popen = app_settings.main_ui
+        if ui:
+            ui.terminate()
         apply_migrations(app_settings=app_settings)
 
     # Check if the user is trying to run the app on a non-Windows OS without the -r flag

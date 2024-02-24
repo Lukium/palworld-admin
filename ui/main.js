@@ -1,7 +1,13 @@
-const { app, BrowserWindow, Tray, Menu } = require('electron');
+const { app, globalShortcut, BrowserWindow, Tray, Menu, Notification } = require('electron');
 const path = require('path');
 
+
 app.commandLine.appendSwitch('log-level', '3');
+
+if (process.platform === 'win32')
+{
+    app.setAppUserModelId(app.name);
+}
 
 const originalConsoleLog = console.log;
 console.log = (...args) => {
@@ -62,6 +68,8 @@ function createWindow() {
         show: false,        
     });
 
+    mainWindow.setMenu(null);
+
     mainWindow.loadURL('http://localhost:8210');
 
     mainWindow.once('ready-to-show', () => {
@@ -69,13 +77,24 @@ function createWindow() {
     });
 
     mainWindow.webContents.on('did-finish-load', () => {
-        checkZoom();      
+        checkZoom();
       });
 
     mainWindow.on('close', (event) => {
         if (!app.isQuitting) {
             event.preventDefault();
             mainWindow.hide();
+
+            // Check if notifications are supported on the user's system
+            if (Notification.isSupported()) {
+                const notification = new Notification({
+                    title: '',
+                    body: 'Palworld ADMIN is still running. You can find it in your system tray.',
+                    icon: path.join(__dirname, 'assets', 'icon.ico')
+                });
+
+                notification.show();
+            }
         }
         return false;
     });
@@ -97,6 +116,25 @@ if (!gotTheLock) {
 
     app.on('ready', () => {
         createWindow();
+        // Register a 'CommandOrControl+Shift+I' shortcut listener.
+        const ret = globalShortcut.register('CommandOrControl+Shift+I', () => {
+            mainWindow.webContents.openDevTools();
+        });
+
+        // Register a 'CommandOrControl+R' shortcut listener.
+        const ret2 = globalShortcut.register('CommandOrControl+R', () => {
+            mainWindow.reload();
+        });
+
+        // Check if the shortcut is registered.
+        if (mainWindow) {
+            mainWindow.webContents.executeJavaScript(
+                `console.log('Ctrl+Shift+I shortcut registration status: ${ret}')`
+              );
+            mainWindow.webContents.executeJavaScript(
+              `console.log('Ctrl+R shortcut registration status: ${ret2}')`
+            );            
+        }
     });
 
     app.on('activate', () => {

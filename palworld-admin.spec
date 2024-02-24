@@ -3,12 +3,12 @@
 
 a = Analysis(
     ['palworld_admin\\main.py'],
-    pathex=[r'C:\palworld-admin-github-dev'],
+    pathex=[r'C:\palworld-admin-github'],
     binaries=[],
     datas=[
-        (r'C:\palworld-admin-github-dev\ui\palworld-admin-ui-win32-x64', 'ui'),
-        (r'C:\palworld-admin-github-dev\palworld_admin\migrations', 'migrations'),
-        (r'C:\palworld-admin-github-dev\palworld_admin\website\resources', 'resources')
+        (r'C:\palworld-admin-github\ui\palworld-admin-ui-win32-x64', 'ui'),
+        (r'C:\palworld-admin-github\palworld_admin\migrations', 'migrations'),
+        (r'C:\palworld-admin-github\palworld_admin\website\resources', 'resources')
     ],
     hiddenimports=[
         'eventlet',

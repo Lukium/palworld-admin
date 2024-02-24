@@ -8,6 +8,7 @@ import logging
 from mimetypes import guess_type
 import os
 import uuid
+import shutil
 import sys
 
 # Must be included for pyinstaller to work
@@ -228,8 +229,115 @@ def flask_app():
     db.init_app(app)
 
     with app.app_context():
+        Migrate(app, db)
         db.create_all()
         initialize_database_defaults()
+
+    @app.route("/restore-server-data", methods=["POST"])
+    @maybe_requires_auth
+    def restore_server_data():
+        reply = {"command": "restore server data"}
+
+        # Delete the existing server data directory recursively
+        try:
+            shutil.rmtree(app_settings.localserver.data_path)
+        except FileNotFoundError:
+            pass
+
+        # Double check that the server data was deleted
+        for root, dirs, files in os.walk(app_settings.localserver.data_path):
+            if dirs or files:
+                message = "Error: Failed to delete server data"
+                reply["success"] = False
+                reply["consoleMessage"] = message
+                reply["outputMessage"] = message
+                reply["toastMessage"] = message
+                data = {"reply": reply, "success": False}
+                return data
+        logging.info("Server data deleted successfully")
+
+        # Ensure the directory exists
+        os.makedirs(app_settings.localserver.data_path, exist_ok=True)
+
+        base_dir = os.path.dirname(app_settings.localserver.data_path)
+        logging.info("Base Directory: %s", base_dir)
+
+        # Save the uploaded files to the server data directory
+        for file in request.files.getlist(
+            "files[]"
+        ):  # The file.filename contains the relative path due to how we set it in FormData
+            # get the parent directory of the base_path
+
+            relative_path = file.filename
+            save_path = os.path.join(base_dir, relative_path)
+            # logging.info("Save Path: %s", save_path)
+
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            # Save the file
+            file.save(save_path)
+
+        logging.info("Server data restored successfully")
+
+        # Verify the files were uploaded and processed successfully
+        for file in request.files.getlist("files[]"):
+            relative_path = file.filename
+            save_path = os.path.join(base_dir, relative_path)
+            if not os.path.exists(save_path):
+                logging.info("Failed to restore: %s", relative_path)
+                message = "Error: Failed to restore server data"
+                reply["success"] = False
+                reply["consoleMessage"] = message
+                reply["outputMessage"] = message
+                reply["toastMessage"] = message
+
+                data = {"reply": reply, "success": False}
+                logging.info("Reply: %s", data)
+                return data
+
+        ensured_paths = ["Saved/ImGui", "Saved/Logs"]
+        # Ensure the required directories exist
+        for ensured_path in ensured_paths:
+            if not os.path.exists(os.path.join(base_dir, ensured_path)):
+                os.makedirs(
+                    os.path.join(base_dir, ensured_path), exist_ok=True
+                )
+
+        message = "Server data restored successfully"
+
+        # Ensure correct OS Directory
+        target_os = app_settings.app_os
+        source_os_location = os.path.join(base_dir, "Saved", "Config")
+        if (
+            os.path.exists(os.path.join(source_os_location, "WindowsServer"))
+            and target_os == "Linux"
+        ):
+            os.rename(
+                os.path.join(source_os_location, "WindowsServer"),
+                os.path.join(source_os_location, "LinuxServer"),
+            )
+            message = message + " and converted to Linux"
+        elif (
+            os.path.exists(os.path.join(source_os_location, "LinuxServer"))
+            and target_os == "Windows"
+        ):
+            os.rename(
+                os.path.join(source_os_location, "LinuxServer"),
+                os.path.join(source_os_location, "WindowsServer"),
+            )
+            message = message + " and converted to Windows"
+
+        reply["success"] = True
+        reply["consoleMessage"] = message
+        reply["outputMessage"] = message
+        reply["toastMessage"] = message
+
+        data = {"reply": reply, "success": True}
+
+        logging.info("Reply: %s", data)
+
+        return jsonify(data)
 
     @app.route("/query-db", methods=["POST"])
     @maybe_requires_auth
@@ -978,6 +1086,7 @@ def flask_app():
         backup_indicator = False
 
         def rcon_monitor():
+            reply = {"command": "rcon monitor", "success": False}
             error_count = (
                 app_settings.localserver.rcon_monitoring_connection_error_count
             )
@@ -986,6 +1095,7 @@ def flask_app():
                 app_settings.localserver.port,
                 app_settings.localserver.password,
             )
+            logging.info("RCON Monitor Result: %s", result)
             if result["status"] == "success":
                 app_settings.localserver.rcon_monitoring_connection_error_count = (
                     0
@@ -998,16 +1108,14 @@ def flask_app():
                             2:
                         ].upper()
 
-                reply = {
-                    "command": "rcon monitor",
-                    "success": True,
-                    "vars": {
-                        "rconConnected": True,
-                        "playerCount": result["player_count"],
-                    },
-                    "players": result["players"],
+                reply["success"] = True
+                reply["vars"] = {
+                    "rconConnected": True,
+                    "playerCount": result["player_count"],
                 }
+                reply["players"] = result["players"]
             else:
+                logging.info("RCON Monitor Error: %s", result["message"])
                 app_settings.localserver.rcon_monitoring_connection_error_count += (
                     1
                 )
@@ -1015,7 +1123,7 @@ def flask_app():
                     result["message"]
                     == "Connection Error: [winerror 10061] no connection could be made because the target machine actively refused it"  # pylint: disable=line-too-long
                     or result["message"]
-                    == "[errno 111] connection refused"  # Linux
+                    == "Connection Error: [errno 111] connection refused"  # Linux
                 ):
                     if error_count > 2:
                         app_settings.localserver.rcon_monitoring_connection_error_count = (

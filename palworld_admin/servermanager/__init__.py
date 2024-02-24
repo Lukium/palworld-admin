@@ -303,6 +303,10 @@ def install_steamcmd() -> dict:
                 ],
                 check=True,
             )
+            subprocess.run(
+                ["steamcmd", "+exit"],
+                check=True,
+            )
             result["status"] = "success"
             result["message"] = "SteamCMD installed successfully"
             logging.info("SteamCMD installed successfully")
