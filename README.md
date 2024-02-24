@@ -52,28 +52,27 @@
 </details>
 
 <details open>
-  <summary>🟡 Server Settings Manager:</summary>
+  <summary>🟢 Server Settings Manager:</summary>
   <details open>
     <summary>🟢 Generate Settings:</summary>
     - 🟢 PalWorldSettings.ini<br>
     - 🟢 WorldOption.sav
   </details>
   <details open>
-    <summary>⚪ Read/Write Directly to Server:</summary>
-  - ⚪ Read settings directly from server<br>
-  - ⚪ Write settings directly to server<br>
-  - ⚪ Server Profile Manager (Store different settings that can be easily swapped)
+    <summary>🟢 Read/Write Directly to Server:</summary>
+  - 🟢 Read settings directly from server<br>
+  - 🟢 Write settings directly to server<br>
   </details>
 </details>
 
 <details open>
-  <summary>⚪Beyond RCON</summary>
+  <summary>🟡Beyond RCON</summary>
 - ⚪ Whitelist Player<br>
 - ⚪ Whitelist Mode (Only allow whitelisted players to join server)<br>
 - ⚪ Unban Player<br>
 - ⚪ Broadcast player joins in server<br>
 - ⚪ Create RCON Log<br>
-- ⚪ display HEX UID for easy Save Identification
+- 🟢 display HEX UID for easy Save Identification
 </details>
 
 ## **Installation:**
