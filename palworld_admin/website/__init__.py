@@ -1,21 +1,30 @@
 """ The main module for the website. """
 
+from datetime import datetime, timedelta
+from functools import wraps
 import io
 import json
 import logging
 from mimetypes import guess_type
 import os
-import sys
 import uuid
+import sys
+
+# Must be included for pyinstaller to work
+from engineio.async_drivers import eventlet  # pylint: disable=unused-import
+import eventlet  # pylint: disable=unused-import disable=reimported
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
+from flask_migrate import Migrate, upgrade
 
 from flask import (
     Flask,
     Response,
     abort,
+    jsonify,
     send_file,
+    send_from_directory,
     redirect,
     url_for,
     flash,
@@ -26,6 +35,28 @@ from flask import (
 
 from waitress import serve
 
+from palworld_admin.rcon import (
+    rcon_connect,
+    resolve_address,
+    rcon_fetch_players,
+    rcon_broadcast,
+    rcon_save,
+    rcon_ban_player,
+    rcon_kick_player,
+    rcon_shutdown,
+)
+
+from palworld_admin.servermanager import (
+    check_install,
+    install_server,
+    run_server,
+    check_server_running,
+    backup_server,
+    update_palworld_settings_ini,
+    generate_world_option_save,
+)
+
+from palworld_admin.helper.dbmanagement import get_stored_default_settings
 from palworld_admin.settings import app_settings
 from palworld_admin.converter.convert import convert_json_to_sav
 from palworld_admin.classes import (
@@ -37,6 +68,123 @@ from palworld_admin.classes import (
 )
 
 from .views import create_views
+
+
+def check_headers() -> dict:
+    """Check the headers to determine if the request is coming from a WebView2 browser."""
+    if "Sec-Ch-Ua" in request.headers:
+        if "WebView2" in request.headers["Sec-Ch-Ua"]:
+            webview_headers = {"webview": True}
+        else:
+            webview_headers = {"webview": False}
+        return webview_headers
+    else:
+        return {"webview": False}
+
+
+def requires_auth(f):
+    """Check if the user is authenticated. If not, redirect to the login page."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get(
+            "authenticated"
+        ):  # Checks if the user is not authenticated
+            return redirect(
+                url_for(
+                    "login",
+                    next=request.url,
+                    webview_headers=check_headers(),
+                    management_mode=app_settings.localserver.management_mode,
+                    version=app_settings.version,
+                )
+            )
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+def maybe_requires_auth(func):
+    """Check if the management mode is set to remote and if so, require authentication."""
+    if app_settings.localserver.management_mode == "remote":
+        return requires_auth(func)
+    else:
+        return func
+
+
+def initialize_database_defaults():
+    """Initialize default records for the database."""
+    # Check if LauncherSettings exists, if not, create a default record
+    if not LauncherSettings.query.first():
+        initial_launcher_settings = LauncherSettings(
+            launch_rcon=True,
+            epicApp=True,
+            useperfthreads=True,
+            NoAsyncLoadingThread=True,
+            UseMultithreadForDS=True,
+            auto_backup=True,
+            auto_backup_delay=3600,  # Default delay in seconds
+            auto_backup_quantity=48,  # Default number of backups to keep
+            auto_restart_triggers=True,
+            auto_restart_on_unexpected_shutdown=True,
+            ram_restart_trigger=0.0,  # Default RAM usage trigger for restart, in GB
+        )
+        db.session.add(initial_launcher_settings)
+
+    # Commit here to ensure LauncherSettings exists before creating Settings
+    db.session.commit()
+
+    # Check if Connection exists, if not, create a default record
+    if not Connection.query.first():
+        initial_connection = Connection(
+            name="Last Connection",
+            host="127.0.0.1",
+            port=25575,
+            password="admin",
+        )
+        db.session.add(initial_connection)
+
+    # Commit here to ensure Connection exists before creating RconSettings
+    db.session.commit()
+
+    # Ensure there's a RconSettings record linked to the default Connection
+    if not RconSettings.query.first():
+        connection = (
+            Connection.query.first()
+        )  # Assuming the first connection is the default
+        initial_rcon_settings = RconSettings(connection_id=connection.id)
+        db.session.add(initial_rcon_settings)
+
+    # Commit here to ensure RconSettings exists before creating Settings
+    db.session.commit()
+
+    # Ensure there's a Settings record linking LauncherSettings and RconSettings
+    if not Settings.query.first():
+        launcher_settings = LauncherSettings.query.first()
+        rcon_settings = RconSettings.query.first()
+        initial_settings = Settings(
+            launcher_settings_id=launcher_settings.id,
+            rcon_settings_id=rcon_settings.id,
+        )
+        db.session.add(initial_settings)
+
+    db.session.commit()
+
+
+def apply_migrations():
+    """Apply any outstanding Alembic migrations."""
+    app = Flask(__name__)
+    app.secret_key = uuid.uuid4().hex
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
+    )
+
+    db.init_app(app)
+
+    with app.app_context():
+        Migrate(app, db)
+        upgrade(directory="migrations")
+    sys.exit(0)
 
 
 # Serve the Flask app with Waitress
@@ -69,19 +217,6 @@ def flask_app():
             else:
                 abort(404)
 
-    socketio = SocketIO(app)
-
-    @app.route("/shutdown", methods=["POST"])
-    def shutdown():
-        logging.info("Shutting down the server...")
-        app_settings.shutdown_requested = True
-
-        return "Server shutting down..."
-
-    # Import the views and register the blueprint
-    views = create_views()
-    app.register_blueprint(views, url_prefix="/")
-
     # Set the secret key to a random UUID
     app.secret_key = uuid.uuid4().hex
 
@@ -89,14 +224,32 @@ def flask_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = (
         f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
     )
+
     db.init_app(app)
+
     with app.app_context():
         db.create_all()
         initialize_database_defaults()
 
-    # def send_to_frontend(event, data, namespace: str = "/", room: str = None):
-    #     """Send data to the frontend."""
-    #     socketio.emit(event, data, namespace=namespace, room=room)
+    @app.route("/query-db", methods=["POST"])
+    @maybe_requires_auth
+    def query_db():
+        """Query the database."""
+        log = True
+        if log:
+            logging.info("Querying the database. Data: %s", request.json)
+        data = request.json
+        if data["function"] == "get_default_settings":
+            result = get_stored_default_settings(data["data"]["model"])
+        return jsonify(result)
+
+    # Route for shutting down the server
+    @app.route("/shutdown", methods=["POST"])
+    def shutdown():
+        logging.info("Shutting down the server...")
+        app_settings.shutdown_requested = True
+
+        return "Server shutting down..."
 
     if app_settings.localserver.management_mode == "remote":
 
@@ -111,7 +264,7 @@ def flask_app():
                     == app_settings.localserver.management_password
                 ):
                     session["authenticated"] = True
-                    return redirect(url_for("views.server_installer"))
+                    return redirect(url_for("views.main"))
                 else:
                     flash("Incorrect password. Please try again.")
             return render_template(
@@ -132,7 +285,17 @@ def flask_app():
     @app.route("/favicon.ico")
     def favicon():
         """Serve the favicon."""
-        return redirect(url_for("static", filename="images/favicon.ico"))
+        return redirect(
+            url_for("custom_static", filename="images/favicon.ico")
+        )
+
+    # Route for serving the resources directory
+    @app.route("/resources/<path:filename>")
+    def custom_static(filename):
+        if app_settings.pyinstaller_mode:
+            directory = os.path.join(app_settings.meipass, "resources")
+            return send_from_directory(directory, filename)
+        return send_from_directory("resources", filename)
 
     @app.route("/generate_sav", methods=["POST"])
     def generate_sav():
@@ -181,90 +344,7 @@ def flask_app():
                 }
 
         json_data = {
-            "header": {
-                "magic": 1396790855,
-                "save_game_version": 3,
-                "package_file_version_ue4": 522,
-                "package_file_version_ue5": 1008,
-                "engine_version_major": 5,
-                "engine_version_minor": 1,
-                "engine_version_patch": 1,
-                "engine_version_changelist": 0,
-                "engine_version_branch": "++UE5+Release-5.1",
-                "custom_version_format": 3,
-                "custom_versions": [
-                    ["40d2fba7-4b48-4ce5-b038-5a75884e499e", 7],
-                    ["fcf57afa-5076-4283-b9a9-e658ffa02d32", 76],
-                    ["0925477b-763d-4001-9d91-d6730b75b411", 1],
-                    ["4288211b-4548-16c6-1a76-67b2507a2a00", 1],
-                    ["1ab9cecc-0000-6913-0000-4875203d51fb", 100],
-                    ["4cef9221-470e-d43a-7e60-3d8c16995726", 1],
-                    ["e2717c7e-52f5-44d3-950c-5340b315035e", 7],
-                    ["11310aed-2e55-4d61-af67-9aa3c5a1082c", 17],
-                    ["a7820cfb-20a7-4359-8c54-2c149623cf50", 21],
-                    ["f6dfbb78-bb50-a0e4-4018-b84d60cbaf23", 2],
-                    ["24bb7af3-5646-4f83-1f2f-2dc249ad96ff", 5],
-                    ["76a52329-0923-45b5-98ae-d841cf2f6ad8", 5],
-                    ["5fbc6907-55c8-40ae-8e67-f1845efff13f", 1],
-                    ["82e77c4e-3323-43a5-b46b-13c597310df3", 0],
-                    ["0ffcf66c-1190-4899-b160-9cf84a46475e", 1],
-                    ["9c54d522-a826-4fbe-9421-074661b482d0", 44],
-                    ["b0d832e4-1f89-4f0d-accf-7eb736fd4aa2", 10],
-                    ["e1c64328-a22c-4d53-a36c-8e866417bd8c", 0],
-                    ["375ec13c-06e4-48fb-b500-84f0262a717e", 4],
-                    ["e4b068ed-f494-42e9-a231-da0b2e46bb41", 40],
-                    ["cffc743f-43b0-4480-9391-14df171d2073", 37],
-                    ["b02b49b5-bb20-44e9-a304-32b752e40360", 3],
-                    ["a4e4105c-59a1-49b5-a7c5-40c4547edfee", 0],
-                    ["39c831c9-5ae6-47dc-9a44-9c173e1c8e7c", 0],
-                    ["78f01b33-ebea-4f98-b9b4-84eaccb95aa2", 20],
-                    ["6631380f-2d4d-43e0-8009-cf276956a95a", 0],
-                    ["12f88b9f-8875-4afc-a67c-d90c383abd29", 45],
-                    ["7b5ae74c-d270-4c10-a958-57980b212a5a", 13],
-                    ["d7296918-1dd6-4bdd-9de2-64a83cc13884", 3],
-                    ["c2a15278-bfe7-4afe-6c17-90ff531df755", 1],
-                    ["6eaca3d4-40ec-4cc1-b786-8bed09428fc5", 3],
-                    ["29e575dd-e0a3-4627-9d10-d276232cdcea", 17],
-                    ["af43a65d-7fd3-4947-9873-3e8ed9c1bb05", 15],
-                    ["6b266cec-1ec7-4b8f-a30b-e4d90942fc07", 1],
-                    ["0df73d61-a23f-47ea-b727-89e90c41499a", 1],
-                    ["601d1886-ac64-4f84-aa16-d3de0deac7d6", 80],
-                    ["5b4c06b7-2463-4af8-805b-bf70cdf5d0dd", 10],
-                    ["e7086368-6b23-4c58-8439-1b7016265e91", 4],
-                    ["9dffbcd6-494f-0158-e221-12823c92a888", 10],
-                    ["f2aed0ac-9afe-416f-8664-aa7ffa26d6fc", 1],
-                    ["174f1f0b-b4c6-45a5-b13f-2ee8d0fb917d", 10],
-                    ["35f94a83-e258-406c-a318-09f59610247c", 41],
-                    ["b68fc16e-8b1b-42e2-b453-215c058844fe", 1],
-                    ["b2e18506-4273-cfc2-a54e-f4bb758bba07", 1],
-                    ["64f58936-fd1b-42ba-ba96-7289d5d0fa4e", 1],
-                    ["697dd581-e64f-41ab-aa4a-51ecbeb7b628", 88],
-                    ["d89b5e42-24bd-4d46-8412-aca8df641779", 41],
-                    ["59da5d52-1232-4948-b878-597870b8e98b", 8],
-                    ["26075a32-730f-4708-88e9-8c32f1599d05", 0],
-                    ["6f0ed827-a609-4895-9c91-998d90180ea4", 2],
-                    ["30d58be3-95ea-4282-a6e3-b159d8ebb06a", 1],
-                    ["717f9ee7-e9b0-493a-88b3-91321b388107", 16],
-                    ["430c4d19-7154-4970-8769-9b69df90b0e5", 15],
-                    ["aafe32bd-5395-4c14-b66a-5e251032d1dd", 1],
-                    ["23afe18e-4ce1-4e58-8d61-c252b953beb7", 11],
-                    ["a462b7ea-f499-4e3a-99c1-ec1f8224e1b2", 4],
-                    ["2eb5fdbd-01ac-4d10-8136-f38f3393a5da", 5],
-                    ["509d354f-f6e6-492f-a749-85b2073c631c", 0],
-                    ["b6e31b1c-d29f-11ec-857e-9f856f9970e2", 1],
-                    ["4a56eb40-10f5-11dc-92d3-347eb2c96ae7", 2],
-                    ["d78a4a00-e858-4697-baa8-19b5487d46b4", 18],
-                    ["5579f886-933a-4c1f-83ba-087b6361b92f", 2],
-                    ["612fbe52-da53-400b-910d-4f919fb1857c", 1],
-                    ["a4237a36-caea-41c9-8fa2-18f858681bf3", 5],
-                    ["804e3f75-7088-4b49-a4d6-8c063c7eb6dc", 5],
-                    ["1ed048f4-2f2e-4c68-89d0-53a4f18f102d", 1],
-                    ["fb680af2-59ef-4ba3-baa8-19b573c8443d", 2],
-                    ["9950b70e-b41a-4e17-bbcc-fa0d57817fd6", 1],
-                    ["ab965196-45d8-08fc-b7d7-228d78ad569e", 1],
-                ],
-                "save_game_class_name": "/Script/Pal.PalWorldOptionSaveGame",
-            },
+            "header": app_settings.palworldsettings_defaults.worldoptionsav_json_data_header,
             "properties": {
                 "Version": {"id": None, "value": 100, "type": "IntProperty"},
                 "OptionWorldData": {
@@ -309,67 +389,750 @@ def flask_app():
             download_name="WorldOption.sav",
         )
 
+    # Import the views and register the blueprint
+    views = create_views()
+    app.register_blueprint(views, url_prefix="/")
+
+    socketio = SocketIO(app, async_mode="eventlet")
+    app_settings.localserver.socket = socketio
+
+    def valid_value(value, expected_type):
+        # Ensure the value is the expected type
+        if expected_type == "port":
+            # Ensure the value is an integer between 1 and 65535
+            if not value.isdigit() or not 1 <= int(value) <= 65535:
+                return False
+        if expected_type == "password":
+            # Ensure the value is a string between 1 and 64 characters
+            if not 1 <= len(value) <= 64:
+                return False
+        return True
+
+    def send_to_frontend(
+        event, data, namespace: str = "/socket", room: str = None
+    ):
+        """Send data to the frontend."""
+        socketio.emit(event, data, namespace=namespace, room=room)
+
+    def process_frontend_command(
+        func,
+        *args,
+        frontend_event: str = None,
+        namespace: str = "/socket",
+        **kwargs,
+    ) -> None:
+        """Process commands from the frontend.
+
+        args:
+            func: Function to run
+            *args: Arguments to pass to the function
+            reply_data: Data to send to the frontend
+            frontend_event: Event to send to the frontend
+            namespace: Namespace to use
+            **kwargs: Keyword arguments to pass to the function
+
+        returns:
+
+        """
+        indicator: dict = None
+        if kwargs.get("indicator"):
+            indicator = {"indicator": kwargs["indicator"]}
+            kwargs.pop("indicator")
+
+        try:
+            reply = {"success": True, "reply": func(*args, **kwargs)}
+            if "command" in reply["reply"]:
+                reply["command"] = reply["reply"]["command"]
+        except Exception as e:  # pylint: disable=broad-except
+            reply = {
+                "success": False,
+                "reply": {
+                    "consoleMessage": f"Error: {e}",
+                    "outputMessage": f"Error: {e}",
+                    "toastMessage": f"Error: {e}",
+                },
+            }
+
+        if indicator:
+            socketio.emit(
+                "stop_indicator",
+                indicator,
+                namespace="/socket",
+            )
+
+        if frontend_event:
+            send_to_frontend(
+                frontend_event,
+                reply,
+                namespace=namespace,
+            )
+            return
+
+        return reply
+
+    @socketio.on("connected", namespace="/socket")
+    def socket_connected():
+        def func():
+            app_settings.current_client = request.sid
+            logging.info("Client connected to socket: %s", request.sid)
+            message = f"Connected to Backend with SessionID: {request.sid}"
+            reply = {
+                "command": "socket connect",
+                "consoleMessage": message,
+                "toastMessage": message,
+            }
+
+            return reply
+
+        return process_frontend_command(func)
+
+    @socketio.on("disconnect", namespace="/socket")
+    def socket_disconnect():
+        def func():
+            logging.info(
+                "Client disconnected from socket: %s",
+                app_settings.current_client,
+            )
+            app_settings.current_client = None
+
+        process_frontend_command(func)
+
+    ############# RCON SOCKET EVENTS #############
+
+    @socketio.on("connect_rcon", namespace="/socket")
+    def connect_rcon(data):
+
+        def func(data):
+            host = resolve_address(data.get("host"))
+            port = data.get("port")
+            password = data.get("password")
+            if "Error" in host:
+                return {"toastMessage": host}
+
+            if not valid_value(port, "port"):
+                return {"toastMessage": "Invalid port number"}
+
+            if not valid_value(password, "password"):
+                return {"toastMessage": "Invalid password"}
+
+            message = rcon_connect(host, port, password)
+
+            reply = {
+                "command": "rcon connect",
+                "consoleMessage": message["message"],
+                "outputMessage": message["message"],
+                "toastMessage": message["message"],
+            }
+
+            if message["status"] == "error":
+                reply["success"] = False
+                reply["vars"] = {
+                    "rconConnected": False,
+                    "serverName": "",
+                    "serverVersion": "",
+                }
+                return reply
+
+            app_settings.localserver.connected = True
+            app_settings.localserver.ip = host
+            app_settings.localserver.port = port
+            app_settings.localserver.password = password
+            reply["success"] = True
+            reply["vars"] = {
+                "rconConnected": True,
+                "serverName": message["server_name"],
+                "serverVersion": message["server_version"],
+            }
+
+            logging.info("Reply: %s", reply)
+            return reply
+
+        return process_frontend_command(func, data)
+
+    @socketio.on("disconnect_rcon", namespace="/socket")
+    def disconnect_rcon():
+        def func():
+            app_settings.localserver.connected = False
+            app_settings.localserver.ip = ""
+            app_settings.localserver.port = 0
+            app_settings.localserver.password = ""
+            reply = {
+                "command": "rcon disconnect",
+                "success": True,
+                "vars": {
+                    "rconConnected": False,
+                    "serverName": "",
+                    "serverVersion": "",
+                    "playerCount": "",
+                },
+                "consoleMessage": "RCON disconnected",
+                "outputMessage": "RCON disconnected",
+                "toastMessage": "RCON disconnected",
+            }
+
+            return reply
+
+        return process_frontend_command(func)
+
+    @socketio.on("rcon_broadcast", namespace="/socket")
+    def rcon_breadcast_socket(data):
+        def func(data):
+            message = rcon_broadcast(
+                app_settings.localserver.ip,
+                app_settings.localserver.port,
+                app_settings.localserver.password,
+                data["message"],
+            )
+            reply = {
+                "command": "rcon broadcast",
+                "consoleMessage": message["message"],
+                "outputMessage": message["message"],
+                "toastMessage": message["message"],
+            }
+            return reply
+
+        return process_frontend_command(func, data)
+
+    @socketio.on("rcon_save", namespace="/socket")
+    def rcon_save_socket():
+        def func():
+            message = rcon_save(
+                app_settings.localserver.ip,
+                app_settings.localserver.port,
+                app_settings.localserver.password,
+            )
+            reply = {
+                "command": "rcon save",
+                "success": message["status"] == "success",
+                "consoleMessage": message["message"],
+                "outputMessage": message["message"],
+                "toastMessage": message["message"],
+            }
+            return reply
+
+        return process_frontend_command(func)
+
+    @socketio.on("rcon_shutdown", namespace="/socket")
+    def rcon_shutdown_socket(data):
+        def func(data):
+            message = rcon_shutdown(
+                app_settings.localserver.ip,
+                app_settings.localserver.port,
+                app_settings.localserver.password,
+                data["delay"],
+                data["message"],
+            )
+            logging.info("RCON Shutdown Message: %s", message)
+            reply = {
+                "command": "rcon shutdown",
+                "success": message["status"] == "success",
+                "time_to_shutdown": data["delay"],
+                "vars": {
+                    "expectedToBeRunning": False,
+                },
+                "consoleMessage": message["message"],
+                "outputMessage": message["message"],
+                "toastMessage": message["message"],
+            }
+
+            if "restarting" in data:
+                if data["restarting"]:
+                    app_settings.localserver.restarting = True
+
+            app_settings.localserver.expected_to_be_running = False
+            app_settings.localserver.shutting_down = True
+            return reply
+
+        return process_frontend_command(func, data)
+
+    @socketio.on("rcon_kick_ban", namespace="/socket")
+    def rcon_kick_ban_player(data):
+        def func(data):
+            if data["action"] == "kick":
+                message = rcon_kick_player(
+                    app_settings.localserver.ip,
+                    app_settings.localserver.port,
+                    app_settings.localserver.password,
+                    data["steamid"],
+                )
+            elif data["action"] == "ban":
+                message = rcon_ban_player(
+                    app_settings.localserver.ip,
+                    app_settings.localserver.port,
+                    app_settings.localserver.password,
+                    data["steamid"],
+                )
+            reply = {
+                "command": f"rcon {data['action']}",
+                "consoleMessage": f'{message["message"]} - {data["playerName"]}',
+                "outputMessage": f'{message["message"]} - {data["playerName"]}',
+                "toastMessage": f'{message["message"]} - {data["playerName"]}',
+            }
+            return reply
+
+        return process_frontend_command(func, data)
+
+    ############# END RCON SOCKET EVENTS #############
+
+    ############# SERVER MANAGER SOCKET EVENTS #############
+
+    @socketio.on("check_install", namespace="/socket")
+    def check_install_socket():
+        def func():
+            result = check_install()
+            # logging.info("Check Install Result: %s", result)
+
+            if result["status"] == "success":
+                reply = {
+                    "command": "check install",
+                    "success": True,
+                    "vars": {
+                        "os": result["os"]["value"],
+                        "steamcmdInstalled": result["steamcmd"]["value"],
+                        "palserverInstalled": result["palserver"]["value"],
+                    },
+                }
+                if "settings" in result:
+                    reply["vars"]["serverSettings"] = result["settings"]
+                if "world_options_sav" in result:
+                    reply["vars"]["worldOptionSavExists"] = result[
+                        "world_options_sav"
+                    ]["value"]
+                if (
+                    app_settings.localserver.installing
+                    and result["palserver"]["value"]
+                ):
+                    reply["outputMessage"] = "Server installation complete"
+                    reply["toastMessage"] = "Server installation complete"
+                    app_settings.localserver.installing = False
+            return reply
+
+        return process_frontend_command(
+            func, frontend_event="check_install", indicator="IO"
+        )
+
+    @socketio.on("install_server", namespace="/socket")
+    def install_server_socket():
+        def func():
+            app_settings.localserver.installing = True
+            result = install_server()
+            # logging.info("Result: %s", result)
+
+            message = result["message"]
+            reply = {
+                "command": "install server",
+                "success": result["status"] == "success",
+                "consoleMessage": message,
+                "outputMessage": message,
+                "toastMessage": message,
+            }
+
+            result = check_install()
+
+            if result["status"] == "success":
+                reply["vars"] = {
+                    "os": result["os"]["value"],
+                    "steamcmdInstalled": result["steamcmd"]["value"],
+                    "palserverInstalled": result["palserver"]["value"],
+                }
+
+            # app_settings.localserver.installing = False
+
+            return reply
+
+        return process_frontend_command(
+            func, frontend_event="install_server", indicator="IO"
+        )
+
+    @socketio.on("launch_server", namespace="/socket")
+    def start_server_socket(data):
+        def func(data):
+            result = run_server(launcher_args=data)
+            # logging.info("Launch Server Result: %s", result)
+
+            message = result["message"]
+            reply = {
+                "command": "launch server",
+                "success": result["status"] == "success",
+                "consoleMessage": message,
+                "outputMessage": message,
+                "toastMessage": message,
+            }
+            if result["status"] == "success":
+                reply["vars"] = {
+                    "expectedToBeRunning": True,
+                    "launcherArgs": data,
+                }
+                ### Auto Backup ###
+                app_settings.localserver.run_auto_backup = data["auto_backup"]
+                app_settings.localserver.backup_interval = data[
+                    "auto_backup_delay"
+                ]
+                app_settings.localserver.backup_retain_count = data[
+                    "auto_backup_quantity"
+                ]
+                backup_server_socket(
+                    {
+                        "backup_type": "launch",
+                        "backup_count": data["auto_backup_quantity"],
+                    }
+                )
+
+                # If the server is restarting, set the restarting variable to False
+                if app_settings.localserver.restarting:
+                    app_settings.localserver.restarting = False
+
+                app_settings.localserver.running = True
+                app_settings.localserver.expected_to_be_running = True
+                app_settings.localserver.last_launcher_args = data
+
+                check_server_running_socket()
+
+            return reply
+
+        return process_frontend_command(
+            func, data, frontend_event="launch_server", indicator="UP"
+        )
+
+    @socketio.on("check_server_running", namespace="/socket")
+    def check_server_running_socket():
+        def func():
+            reply = {}
+            result = check_server_running()
+            # logging.info("Result: %s", result)
+
+            if result["value"] is False:
+                app_settings.localserver.running = False
+
+            # If this is the first check, set the expected_to_be_running variable
+            if (
+                app_settings.localserver.running_check_count == 0
+                and result["status"] == "success"
+                and result["value"] is True
+            ):
+                app_settings.localserver.expected_to_be_running = True
+                reply["vars"] = {}
+                reply["vars"]["expectedToBeRunning"] = True
+                reply["outputMessage"] = (
+                    "Server Running on Startup, Starting Monitoring..."
+                )
+
+            reply["command"] = "check server running"
+            reply["success"] = result["status"] == "success"
+            reply["vars"] = {
+                "serverRunning": result["value"],
+                "runningCheckCount": app_settings.localserver.running_check_count,
+                "cpuUsage": result["cpu_usage"],
+                "ramUsage": result["ram_usage"],
+            }
+
+            app_settings.localserver.last_cpu_usage = result["cpu_usage"]
+            app_settings.localserver.last_ram_usage = result["ram_usage"]
+
+            # If the server is shutting down and the check returns False,
+            # reset the shutting_down variable
+            if (
+                app_settings.localserver.shutting_down
+                and result["value"] is False
+            ):
+                app_settings.localserver.shutting_down = False
+                app_settings.localserver.expected_to_be_running = False
+                reply["vars"]["expectedToBeRunning"] = False
+                reply["outputMessage"] = "Server has been shut down"
+
+            app_settings.localserver.running_check_count += 1
+            reply["success"] = result["status"] == "success"
+            # logging.info("Check Server Running Reply: %s", reply)
+            return reply
+
+        # If restarting, reply to the frontend where the request came from
+        if app_settings.localserver.restarting:
+            return process_frontend_command(func, indicator="IO")
+
+        # If not restarting, reply to check_server_running_socket
+        return process_frontend_command(
+            func, frontend_event="check_server_running", indicator="UP"
+        )
+
+    @socketio.on("backup_server", namespace="/socket")
+    def backup_server_socket(data):
+        def func(data):
+            result = backup_server(data)
+            logging.info("Backup Server Result: %s", result)
+
+            message = result["message"]
+            reply = {
+                "command": "backup server",
+                "success": result["status"] == "success",
+                "consoleMessage": message,
+                "outputMessage": message,
+                "toastMessage": message,
+            }
+            if result["status"] == "success":
+                app_settings.localserver.last_backup = datetime.now()
+                reply["vars"] = {
+                    "lastBackup": app_settings.localserver.last_backup.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                }
+            return reply
+
+        # If restarting, reply to the frontend where the request came from
+        if app_settings.localserver.restarting:
+            return process_frontend_command(func, data, indicator="IO")
+
+        # If not restarting, reply to backup_server_socket
+        return process_frontend_command(
+            func, data, frontend_event="backup_server", indicator="IO"
+        )
+
+    @socketio.on("store_server_settings", namespace="/socket")
+    def store_server_settings(data):
+        def func(data):
+            result = update_palworld_settings_ini(data)
+            logging.info("Update Server Settings Result: %s", result)
+
+            message = ""
+            reply = {
+                "command": "update server settings",
+                "ini_success": result["status"] == "success",
+            }
+            if result["status"] == "success":
+                result = generate_world_option_save(data)
+                reply["sav_success"] = result["success"]
+
+                if result["success"]:
+                    message = "PalWorldSettings.ini and WorldOption.sav updated successfully"
+                    result = check_install()
+                    if result["status"] == "success":
+                        reply["vars"] = {
+                            "serverSettings": result["settings"],
+                            "worldOptionSavExists": result[
+                                "world_options_sav"
+                            ]["value"],
+                        }
+                else:
+                    message = (
+                        "PalWorldSettings.ini updated successfully, "
+                        + "but WorldOption.sav failed to update"
+                    )
+            else:
+                message = (
+                    "Failed to update PalWorldSettings.ini and WorldOption.sav"
+                )
+
+            reply["consoleMessage"] = message
+            reply["outputMessage"] = message
+            reply["toastMessage"] = message
+
+            return reply
+
+        return process_frontend_command(func, data, indicator="IO")
+
+    @socketio.on("delete_world_option", namespace="/socket")
+    def delete_world_option():
+        def func():
+            reply = {"command": "delete world option"}
+            target_file = os.path.join(
+                app_settings.localserver.sav_path, "WorldOption.sav"
+            )
+            try:
+                message = "WorldOption.sav deleted successfully"
+                success = True
+
+                os.remove(target_file)
+                if os.path.exists(target_file):
+                    message = "Failed to delete WorldOption.sav"
+                    success = False
+
+                result = check_install()
+                if result["status"] == "success":
+                    reply["vars"] = {
+                        "serverSettings": result["settings"],
+                        "worldOptionSavExists": result["world_options_sav"][
+                            "value"
+                        ],
+                    }
+
+            except Exception as e:
+                message = f"Error: {e}"
+                success = False
+
+            reply["consoleMessage"] = message
+            reply["outputMessage"] = message
+            reply["toastMessage"] = message
+            reply["success"] = success
+
+            return reply
+
+        return process_frontend_command(func, indicator="IO")
+
+    ############# END SERVER MANAGER SOCKET EVENTS #############
+
+    ############# SERVER MONITOR #############
+
+    def server_minitor_task():
+        timer = 0
+        up_indicator = False
+        rcon_indicator = False
+        backup_indicator = False
+
+        def rcon_monitor():
+            error_count = (
+                app_settings.localserver.rcon_monitoring_connection_error_count
+            )
+            result = rcon_fetch_players(
+                app_settings.localserver.ip,
+                app_settings.localserver.port,
+                app_settings.localserver.password,
+            )
+            if result["status"] == "success":
+                app_settings.localserver.rcon_monitoring_connection_error_count = (
+                    0
+                )
+                if len(result["players"]) > 0:
+                    # For each player, convert playerUID to HEXADECIMAL like F9B309D1
+                    for player in result["players"]:
+
+                        player["saveid"] = hex(int(player["playeruid"]))[
+                            2:
+                        ].upper()
+
+                reply = {
+                    "command": "rcon monitor",
+                    "success": True,
+                    "vars": {
+                        "rconConnected": True,
+                        "playerCount": result["player_count"],
+                    },
+                    "players": result["players"],
+                }
+            else:
+                app_settings.localserver.rcon_monitoring_connection_error_count += (
+                    1
+                )
+                if (
+                    result["message"]
+                    == "Connection Error: [winerror 10061] no connection could be made because the target machine actively refused it"  # pylint: disable=line-too-long
+                    or result["message"]
+                    == "[errno 111] connection refused"  # Linux
+                ):
+                    if error_count > 2:
+                        app_settings.localserver.rcon_monitoring_connection_error_count = (
+                            0
+                        )
+                        reply = {
+                            "command": "rcon monitor",
+                            "success": False,
+                            "players": [],
+                            "vars": {
+                                "serverName": "",
+                                "serverVersion": "",
+                                "playerCount": "",
+                            },
+                            "consoleMessage": "Server appears to be offline. Disconnecting from RCON.",  # pylint: disable=line-too-long
+                            "toastMessage": "Server appears to be offline. Disconnecting from RCON.",  # pylint: disable=line-too-long
+                            "outputMessage": "Server appears to be offline. Disconnecting from RCON.",  # pylint: disable=line-too-long
+                        }
+                    else:
+                        message = f"RCON Connection Error: Server actively refused the connection {error_count+1}/3"  # pylint: disable=line-too-long
+                        reply = {
+                            "command": "rcon monitor",
+                            "success": False,
+                            "players": [],
+                            "vars": {
+                                "serverName": "",
+                                "serverVersion": "",
+                                "playerCount": "",
+                            },
+                            "outputMessage": message,
+                            "consoleMessage": message,
+                        }
+
+            return reply
+
+        def start_indicator(indicator):
+            socketio.emit(
+                "start_indicator",
+                {"indicator": indicator},
+                namespace="/socket",
+            )
+
+        while True:
+            server_running = app_settings.localserver.running
+            rcon_connected = app_settings.localserver.connected
+            rcon_interval = app_settings.localserver.rcon_monitoring_interval
+            server_monitor_interval = (
+                app_settings.localserver.server_monitoring_interval
+            )
+
+            # Auto Backups
+            if app_settings.localserver.run_auto_backup:
+                backup_interval = float(
+                    app_settings.localserver.backup_interval
+                )
+                backup_count = app_settings.localserver.backup_retain_count
+                last_backup = app_settings.localserver.last_backup
+                if last_backup is None:
+                    last_backup = datetime.now()
+                next_backup = last_backup + timedelta(seconds=backup_interval)
+
+                if backup_indicator:
+                    backup_indicator = False
+                    backup_server_socket(
+                        {
+                            "backup_type": "automatic",
+                            "backup_count": backup_count,
+                        }
+                    )
+                    next_backup = datetime.now() + timedelta(
+                        seconds=backup_interval
+                    )
+
+                if datetime.now() > next_backup and server_running:
+                    backup_indicator = True
+                    start_indicator("IO")
+
+            if rcon_indicator:
+                rcon_indicator = False
+                process_frontend_command(
+                    rcon_monitor,
+                    frontend_event="update_players",
+                    indicator="RCON",
+                )
+
+            # Fetch the players from the server every rcon_interval seconds if connected
+            if (
+                rcon_connected
+                and timer % rcon_interval == 0
+                and app_settings.localserver.shutting_down is False
+            ):
+                start_indicator("RCON")
+                rcon_indicator = True
+
+            if up_indicator:
+                up_indicator = False
+                check_server_running_socket()
+
+            if (
+                app_settings.localserver.expected_to_be_running
+                and timer % server_monitor_interval == 0
+            ):
+                start_indicator("UP")
+                up_indicator = True
+
+            timer += 0.5
+            # Use socketio.sleep for proper thread management
+            socketio.sleep(0.5)
+
+    # Start the server monitor in the background
+    socketio.start_background_task(server_minitor_task)
+
     # Set socketIO to use the Flask app
 
     if app_settings.dev:
-        socketio.run(app, host="0.0.0.0", port=8210, debug=True)
+        socketio.run(app, host="0.0.0.0", port=8210, debug=False)
     else:
         socketio.run(app, host="0.0.0.0", port=8210, debug=False)
 
-
-def initialize_database_defaults():
-    """Initialize default records for the database."""
-    # Check if LauncherSettings exists, if not, create a default record
-    if not LauncherSettings.query.first():
-        initial_launcher_settings = LauncherSettings(
-            launch_rcon=True,
-            epicApp=True,
-            useperfthreads=True,
-            NoAsyncLoadingThread=True,
-            UseMultithreadForDS=True,
-            auto_backup=True,
-            auto_backup_delay=3600,  # Default delay in seconds
-            auto_backup_quantity=48,  # Default number of backups to keep
-            auto_restart_triggers=True,
-            ram_restart_trigger=0.0,  # Default RAM usage trigger for restart, in GB
-        )
-        db.session.add(initial_launcher_settings)
-
-    # Commit here to ensure LauncherSettings exists before creating Settings
-    db.session.commit()
-
-    # Check if Connection exists, if not, create a default record
-    if not Connection.query.first():
-        initial_connection = Connection(
-            name="Last Connection",
-            host="127.0.0.1",
-            port=25575,
-            password="admin",
-        )
-        db.session.add(initial_connection)
-
-    # Commit here to ensure Connection exists before creating RconSettings
-    db.session.commit()
-
-    # Ensure there's a RconSettings record linked to the default Connection
-    if not RconSettings.query.first():
-        connection = (
-            Connection.query.first()
-        )  # Assuming the first connection is the default
-        initial_rcon_settings = RconSettings(connection_id=connection.id)
-        db.session.add(initial_rcon_settings)
-
-    # Commit here to ensure RconSettings exists before creating Settings
-    db.session.commit()
-
-    # Ensure there's a Settings record linking LauncherSettings and RconSettings
-    if not Settings.query.first():
-        launcher_settings = LauncherSettings.query.first()
-        rcon_settings = RconSettings.query.first()
-        initial_settings = Settings(
-            launcher_settings_id=launcher_settings.id,
-            rcon_settings_id=rcon_settings.id,
-        )
-        db.session.add(initial_settings)
-
-    db.session.commit()
+    return app

@@ -284,10 +284,11 @@ def execute(host_port, password, *commands):
             req_id = remote_console.write(command)
             _, resp_req_id, data = remote_console.read()
             if req_id != resp_req_id:
-                print(
-                    "Error: Invalid Password?",
-                    file=sys.stderr,
-                )
+                return "Error: Invalid Password?"
+            #     print(
+            #         "Error: Invalid Password?",
+            #         file=sys.stderr,
+            #     )
 
             # print(colorize(data))
             return data
@@ -314,13 +315,11 @@ def resolve_address(ip_or_domain):
             ip = socket.gethostbyname(ip_or_domain)
             return ip
         except socket.gaierror as exc:
-            raise ValueError(
-                f"Could not resolve domain: {ip_or_domain}"
-            ) from exc
+            return f"Error resolving domain: {exc}"
 
     # If neither, raise an error
     else:
-        raise ValueError(f"Invalid IP address or domain name: {ip_or_domain}")
+        return f"Error: Invalid IP address or domain name: {ip_or_domain}"
 
 
 def parse_cli():

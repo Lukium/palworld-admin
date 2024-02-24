@@ -11,7 +11,6 @@ console.log = (...args) => {
     originalConsoleLog.apply(console, args);
 };
 
-let flaskProcess;
 let tray = null;
 let mainWindow = null;
 
@@ -29,21 +28,49 @@ function createTray() {
     });
 }
 
+async function checkZoom() {
+    try {
+        const zoomLevel = await mainWindow.webContents.getZoomLevel();
+        // console.log(`Current zoom level is: ${zoomLevel}`);
+        // Perform action based on the zoom level if necessary
+        // make the zoom level -1 based on the current zoom level
+        //if (zoomLevel !== -1) {
+        //    mainWindow.webContents.setZoomLevel(-1);
+        //}       
+
+        // const newZoomLevel = await mainWindow.webContents.getZoomLevel();
+        // console.log(`New zoom level is: ${newZoomLevel}`);
+    } catch (error) {
+        console.error('Error getting zoom level:', error);
+    }
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 760,
+        width: 900,
         height: 875,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
         },
-        minWidth: 760,
+        minWidth: 900,
         minHeight: 875,
         autoHideMenuBar: true,
         icon: path.join(__dirname, 'assets', 'icon.ico'),
+        title: 'Palworld ADMIN',
+        backgroundColor: "#212529",
+        show: false,        
     });
 
     mainWindow.loadURL('http://localhost:8210');
+
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+    });
+
+    mainWindow.webContents.on('did-finish-load', () => {
+        checkZoom();      
+      });
 
     mainWindow.on('close', (event) => {
         if (!app.isQuitting) {
@@ -68,7 +95,9 @@ if (!gotTheLock) {
         }
     });
 
-    app.on('ready', createWindow);
+    app.on('ready', () => {
+        createWindow();
+    });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

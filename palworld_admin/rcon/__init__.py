@@ -51,15 +51,14 @@ def rcon_broadcast(ip_address, port, password, message) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    info = f"RCON Broadcast Result: {result}"
-    logging.info(info)
+    logging.info("Broadcast Result: %s", result)
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
         reply["message"] = "Broadcast Error"
     else:
         reply["status"] = "success"
-        reply["message"] = "Broadcast sent successfully"
+        reply["message"] = f'Broadcasted "{message}" successfully'
 
     return reply
 
@@ -76,8 +75,7 @@ def rcon_connect(ip_address, port, password) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    info = f"RCON Connection Result: {result}"
-    logging.info(info)
+    logging.info("RCON Connection Result: %s", result)
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
@@ -101,7 +99,7 @@ def rcon_connect(ip_address, port, password) -> dict:
     else:
         app_settings.localserver.connected = True
         reply["status"] = "success"
-        reply["message"] = "Connected to server successfully"
+        reply["message"] = "RCON Connected!"
         reply["server_name"] = result.split("]")[1].strip()
         reply["server_version"] = result.split("[")[1].split("]")[0].strip()
         save_user_settings_to_db(
@@ -286,7 +284,7 @@ def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
         reply["message"] = "Shutdown Error"
     else:
         reply["status"] = "success"
-        reply["message"] = "Server shutdown initiated successfully"
+        reply["message"] = f"Server shutting down in {delay} seconds"
 
     return reply
 

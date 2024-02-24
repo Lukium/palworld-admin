@@ -5,7 +5,7 @@ description = "Palworld Admin is a GUI to manage your Palworld Dedicated Server,
 authors = ["Lukium <mrlukium@outlook.com>"]
 license = "Expressed Permission Only"
 readme = "README.md"
-include = ["classes/*", "converter/*", "helper/*", "rcon/*", "servermanager/*", "ui/*", "website/*"]
+include = ["classes/*", "converter/*", "helper/*", "rcon/*", "servermanager/*", "ui/*", "website/*", "migrations/*"]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
@@ -18,6 +18,7 @@ pyjwt = "^2.8.0"
 flask-sqlalchemy = "^3.1.1"
 flask-socketio = "^5.3.6"
 eventlet = "^0.35.1"
+flask-migrate = "^4.0.5"
 
 [tool.poetry.dev-dependencies]
 pyinstaller = "^6.3.0"

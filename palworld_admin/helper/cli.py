@@ -24,6 +24,14 @@ Must be at least 6 characters long.""",
         help="Set the management mode of the Server Manager to remote.",
     )
 
+    parser.add_argument(
+        "-mdb",
+        "--migrate-database",
+        default=False,
+        action="store_true",
+        help="Migrate the database to the latest version.",
+    )
+
     args = parser.parse_args()
     if args.ManagementPassword:
         result["ManagementPassword"] = args.ManagementPassword
@@ -42,6 +50,8 @@ Use the -mp flag to set the password."""
             )
     else:
         result["Remote"] = "local"
+
+    result["MigrateDatabase"] = args.migrate_database
     return result
 
 

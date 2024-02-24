@@ -10,6 +10,7 @@ import time
 
 from threading import Thread
 
+# from palworld_admin.helper.cli import parse_cli
 from palworld_admin.classes import PalWorldSettings, LocalServer, MemoryStorage
 from palworld_admin.helper.oscommands import detect_virtual_machine
 
@@ -41,16 +42,12 @@ LOCAL_SERVER_DATA_PATH = "Pal/Saved"
 
 BASE_URL = "https://palworld-servertools.lukium.ai"
 TEMPLATES = [
-    "home.html",
+    "ui.html",
     "login.html",
-    "main.html",
-    "rcon.html",
-    "server_installer.html",
-    "settings_gen.html",
 ]
 STATIC_FILES = [
-    "images/palworld-logo.png",
-    "images/icon.png",
+    # "images/palworld-logo.png",
+    # "images/icon.png",
 ]
 
 
@@ -59,9 +56,9 @@ class Settings:
     This class is used to store and manage the server settings."""
 
     def __init__(self):
-        self.dev: bool = True
-        self.no_ui: bool = False
-        self.version: str = "0.8.0"
+        self.dev: bool = False
+        self.no_ui: bool = True
+        self.version: str = "0.8.1"
         self.exe_path: str = ""
         self.app_os = ""
         self.server_os = ""
@@ -69,6 +66,7 @@ class Settings:
         self.main_ui = None
         self.ready = False
         self.force_error = False
+        self.meipass = None
 
         self.palworldsettings_defaults = PalWorldSettings()
         self.localserver = LocalServer()
@@ -77,6 +75,8 @@ class Settings:
         self.pyinstaller_mode: bool = False
 
         self.shutdown_requested = False
+
+        self.current_client: str = ""
 
         self.set_logging()
         self.set_pyinstaller_mode()
@@ -106,8 +106,11 @@ class Settings:
         """Set the pyinstaller mode based on the current environment."""
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
             self.pyinstaller_mode = True
+            self.meipass = sys._MEIPASS  # pylint: disable=protected-access
+            logging.info("MEIPASS: %s", self.meipass)
         else:
             self.pyinstaller_mode = False
+        logging.info("Pyinstaller mode: %s", self.pyinstaller_mode)
 
     def set_local_server_paths(self):
         """Set the paths for the local server based on the current environment."""
@@ -197,6 +200,41 @@ class Settings:
             exe_path, LOCAL_SERVER_BACKUP_PATH
         )
 
+        # sav_path
+        partial_sav_path = os.path.join(
+            self.localserver.data_path, "SaveGames", "0"
+        )
+        # Get the first folder in the partial_sav_path if partial_sav_path exists
+        if os.path.exists(partial_sav_path):
+            logging.info("Partial sav path exists, using first folder.")
+            self.localserver.sav_path = os.path.join(
+                partial_sav_path, os.listdir(partial_sav_path)[0]
+            )
+        else:
+            # Try to use GameUserSettings.ini to get the sav path
+            target_file = os.path.join(
+                base_launcher_path,
+                PALWORLDSETTINGS_INI_BASE_PATH,
+                f"{windows_or_linux}Server",
+                "GameUserSettings.ini",
+            )
+            # Read DedicatedServerName value from GameUserSettings.ini if it exists
+            if os.path.exists(target_file):
+                logging.info(
+                    "GameUserSettings.ini exists, reading DedicatedServerName."
+                )
+                with open(target_file, "r", encoding="utf-8") as file:
+                    lines = file.readlines()
+                    for line in lines:
+                        if "DedicatedServerName=" in line:
+                            self.localserver.sav_path = os.path.join(
+                                self.localserver.data_path,
+                                "SaveGames",
+                                "0",
+                                line.split("=")[1].strip(),
+                            )
+                            break
+
         logging.info(
             "Local server steamcmd path: %s", self.localserver.steamcmd_path
         )
@@ -208,6 +246,8 @@ class Settings:
             "Local server backup path: %s", self.localserver.backup_path
         )
         logging.info("Local server data path: %s", self.localserver.data_path)
+
+        logging.info("Local server sav path: %s", self.localserver.sav_path)
 
     def set_app_os(self):
         """Set the operating system of the application based on the current environment."""
@@ -263,7 +303,7 @@ class Settings:
             try:
                 if self.pyinstaller_mode:
                     ui_path = os.path.join(
-                        sys._MEIPASS,  # pylint: disable=protected-access
+                        self.meipass,
                         "ui",
                         "palworld-admin-ui.exe",
                     )
@@ -289,7 +329,6 @@ class Settings:
 
         def monitor():
             while not self.shutdown_requested:
-                logging.info("Monitoring UI.")
                 time.sleep(1)
             logging.info("Shutdown requested, waiting 1 second.")
             time.sleep(1)  # Wait for the UI to close
@@ -297,11 +336,35 @@ class Settings:
             pid = os.getpid()
             logging.info("Terminating own Process with Pid: %s", pid)
             if app_settings.app_os == "Windows":
-                os.system(f"taskkill /F /PID {pid}")
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                subprocess.run(
+                    ["taskkill", "/F", "/PID", str(pid)],
+                    capture_output=True,
+                    check=True,
+                    startupinfo=startupinfo,
+                    text=True,
+                )
+                # os.system(f"taskkill /F /PID {pid}")
             else:
                 os.system(f"kill -9 {pid}")
 
         Thread(target=monitor, daemon=True).start()
+
+    # def review_cli(self):
+    #     """Parse command line arguments."""
+    #     try:
+    #         parsed_args = parse_cli()
+    #         if parsed_args["MigrateDatabase"]:
+    #             self.no_ui = True
+
+    #         return parsed_args
+    #     except ValueError as e:
+    #         print(f"Error: {e}")
+    #         # Optionally, you can also provide guidance or next steps:
+    #         print("Use -h for help.")
+    #         # Exiting with a non-zero status code to indicate that an error occurred
+    #         exit(1)
 
 
 app_settings = Settings()

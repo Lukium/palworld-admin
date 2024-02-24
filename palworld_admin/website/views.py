@@ -68,6 +68,8 @@ def go_to(url: str):
             webview_headers=headers,
             management_mode=app_settings.localserver.management_mode,
             version=app_settings.version,
+            defaults=DEFAULT_VALUES,
+            descriptions=DESCRIPTIONS,
         )
     else:
         if headers["webview"]:
@@ -76,6 +78,8 @@ def go_to(url: str):
                 webview_headers=headers,
                 management_mode=app_settings.localserver.management_mode,
                 version=app_settings.version,
+                defaults=DEFAULT_VALUES,
+                descriptions=DESCRIPTIONS,
             )
         else:
             return render_template(
@@ -83,6 +87,8 @@ def go_to(url: str):
                 webview_headers=headers,
                 management_mode=app_settings.localserver.management_mode,
                 version=app_settings.version,
+                defaults=DEFAULT_VALUES,
+                descriptions=DESCRIPTIONS,
             )
             # return jsonify({"status": "error", "message": "Permission denied"})
 
@@ -123,9 +129,10 @@ def create_views():
     views = Blueprint("views", __name__)
 
     @views.route("/", methods=["GET", "POST"])
+    @maybe_requires_auth
     def main():
         """Render the home page."""
-        return go_to("main.html")
+        return go_to("ui.html")
 
     @views.route("/home")
     def home():
@@ -299,16 +306,16 @@ def create_views():
         result = rcon_shutdown(ip_address, port, password, delay, message)
         return jsonify(result)
 
-    @views.route("/close")
-    def close():
-        """Close the webview browser window."""
-        app_settings.main_ui.close_browser()
-        return "", 204
+    # @views.route("/close")
+    # def close():
+    #     """Close the webview browser window."""
+    #     app_settings.main_ui.close_browser()
+    #     return "", 204
 
-    @views.route("/minimize")
-    def minimize():
-        """Minimize the webview browser window."""
-        app_settings.main_ui.minimize_browser()
-        return "", 204
+    # @views.route("/minimize")
+    # def minimize():
+    #     """Minimize the webview browser window."""
+    #     app_settings.main_ui.minimize_browser()
+    #     return "", 204
 
     return views
