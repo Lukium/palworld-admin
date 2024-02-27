@@ -984,7 +984,7 @@ def first_run():
     logging.info("Running server for the first time to create initial files.")
     launcher_args = {
         "rcon_port": "25575",
-        "epicApp": True,
+        "epicApp": False,
         "useperfthreads": True,
         "NoAsyncLoadingThread": True,
         "UseMultithreadForDS": True,
@@ -992,6 +992,7 @@ def first_run():
         "auto_backup": True,
         "auto_backup_delay": "3600",
         "auto_backup_quantity": "48",
+        "publiclobby": False,
         "auto_restart_triggers": True,
         "auto_restart_on_unexpected_shutdown": True,
         "ram_restart_trigger": "0",
