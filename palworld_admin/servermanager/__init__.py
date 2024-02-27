@@ -515,6 +515,7 @@ def run_server(launcher_args: dict = None):
 
     if log:
         logging.info("Running server. Launcher Args: %s", launcher_args)
+    rcon_port = launcher_args["rcon_port"]
     epicapp = launcher_args["epicApp"]
     useperfthreads = launcher_args["useperfthreads"]
     noasyncloadingthread = launcher_args["NoAsyncLoadingThread"]
@@ -523,6 +524,7 @@ def run_server(launcher_args: dict = None):
     auto_backup = launcher_args["auto_backup"]
     auto_backup_delay = launcher_args["auto_backup_delay"]
     auto_backup_quantity = launcher_args["auto_backup_quantity"]
+    publiclobby = launcher_args["publiclobby"]
     auto_restart_triggers = launcher_args["auto_restart_triggers"]
     auto_restart_on_unexpected_shutdown = launcher_args[
         "auto_restart_on_unexpected_shutdown"
@@ -530,7 +532,7 @@ def run_server(launcher_args: dict = None):
     ram_restart_trigger = launcher_args["ram_restart_trigger"]
 
     # Construct the command with necessary parameters and flags, add - for all flags except epicapp
-    cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
+    cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -publiclobby " if publiclobby else ""}{f" -RCONPort={rcon_port}"}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
 
     try:
         if log:
@@ -981,6 +983,7 @@ def first_run():
     app_settings.localserver.expected_to_be_running = True
     logging.info("Running server for the first time to create initial files.")
     launcher_args = {
+        "rcon_port": "25575",
         "epicApp": True,
         "useperfthreads": True,
         "NoAsyncLoadingThread": True,

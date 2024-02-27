@@ -36,6 +36,7 @@ class LauncherSettings(db.Model):
     auto_backup = db.Column(db.Boolean, default=True)
     auto_backup_delay = db.Column(db.Integer, default=3600)
     auto_backup_quantity = db.Column(db.Integer, default=48)
+    publiclobby = db.Column(db.Boolean, default=False)
     auto_restart_triggers = db.Column(db.Boolean, default=True)
     auto_restart_on_unexpected_shutdown = db.Column(db.Boolean, default=True)
     ram_restart_trigger = db.Column(db.Float, default=0.0)

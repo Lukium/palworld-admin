@@ -154,7 +154,9 @@ class RemoteConsole:
             reqid = self._new_request_id()
 
         packet = struct.pack("<iii", 10 + len(cmd_str), reqid, cmd_type)
-        packet += cmd_str.encode("ascii") + b"\x00\x00"
+        # The original ascii encoding, try utf-8 instead
+        packet += cmd_str.encode("utf-8") + b"\x00\x00"
+        # packet += cmd_str.encode("ascii") + b"\x00\x00"
 
         with self.lock:
             self.conn.sendall(packet)
@@ -186,8 +188,9 @@ class RemoteConsole:
             # Adjusting the offset here if necessary
             response = (
                 remaining_data[8:]
-                .decode("ascii", errors="ignore")
-                .rstrip("\x00")
+                # Original ascii decoding, try utf-8 instead
+                .decode("utf-8", errors="ignore").rstrip("\x00")
+                # .decode("ascii", errors="ignore").rstrip("\x00")
             )
 
             return resp_type, reqid, response
@@ -266,7 +269,10 @@ def execute(host_port, password, *commands):
     if command.lower().startswith("broadcast "):
         parts = command.split(" ", 1)  # Split into 'Broadcast' and the message
         command = (
-            parts[0] + " " + parts[1].replace(" ", "\x1F")
+            # parts[0] + " " + parts[1].replace(" ", "\x1F")
+            parts[0]
+            + " "
+            + parts[1].replace(" ", "\u001f")
         )  # Replace spaces in the message
 
     # If the command starts with 'shutdown',

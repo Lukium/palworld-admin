@@ -57,8 +57,8 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
-        self.no_ui: bool = True
-        self.version: str = "0.8.2"
+        self.no_ui: bool = False
+        self.version: str = "0.8.3"
         self.exe_path: str = ""
         self.app_os = ""
         self.server_os = ""

@@ -51,6 +51,9 @@ def update_object_fields(obj, data, fields) -> list:
     updated_fields = []
     for field in fields:
         if field in data:
+            # if field is rcon_port, skip it
+            if field == "rcon_port":
+                continue
             if getattr(obj, field) != data[field]:
                 setattr(obj, field, data[field])
                 updated_fields.append(field)

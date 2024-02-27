@@ -1,7 +1,7 @@
 const { app, globalShortcut, BrowserWindow, Tray, Menu, Notification } = require('electron');
 const path = require('path');
 
-
+// app.disableHardwareAcceleration(); // Disable hardware acceleration to fix some rendering issues
 app.commandLine.appendSwitch('log-level', '3');
 
 if (process.platform === 'win32')

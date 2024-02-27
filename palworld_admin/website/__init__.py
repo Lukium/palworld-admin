@@ -119,13 +119,14 @@ def initialize_database_defaults():
     if not LauncherSettings.query.first():
         initial_launcher_settings = LauncherSettings(
             launch_rcon=True,
-            epicApp=True,
+            epicApp=False,
             useperfthreads=True,
             NoAsyncLoadingThread=True,
             UseMultithreadForDS=True,
             auto_backup=True,
             auto_backup_delay=3600,  # Default delay in seconds
             auto_backup_quantity=48,  # Default number of backups to keep
+            publiclobby=False,
             auto_restart_triggers=True,
             auto_restart_on_unexpected_shutdown=True,
             ram_restart_trigger=0.0,  # Default RAM usage trigger for restart, in GB
@@ -587,7 +588,6 @@ def flask_app():
             reply = {
                 "command": "socket connect",
                 "consoleMessage": message,
-                "toastMessage": message,
             }
 
             return reply
@@ -831,7 +831,7 @@ def flask_app():
                 "command": "install server",
                 "success": result["status"] == "success",
                 "consoleMessage": message,
-                "outputMessage": message,
+                # "outputMessage": message,
                 "toastMessage": message,
             }
 

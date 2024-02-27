@@ -33,10 +33,12 @@ def main():
 
     if args["MigrateDatabase"]:
         # Terminate the UI if only the database migration is required
+        while not app_settings.ready:
+            time.sleep(0.1)
         ui: subprocess.Popen = app_settings.main_ui
         if ui:
             ui.terminate()
-        apply_migrations(app_settings=app_settings)
+        apply_migrations()
 
     # Check if the user is trying to run the app on a non-Windows OS without the -r flag
     try:
@@ -51,8 +53,7 @@ def main():
     # Launch the Flask app
     while not app_settings.ready:
         time.sleep(0.1)
-    # apply_migrations()
-    # flask_app()
+
     app = flask_app()
     socketio = SocketIO(app)
     socketio.run(app, host="0.0.0.0", port=8210)
