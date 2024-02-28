@@ -62,7 +62,7 @@ class Settings:
     def __init__(self):
         self.dev: bool = False
         self.dev_ui: bool = False
-        self.no_ui: bool = False
+        self.no_ui: bool = True
         self.version: str = "0.8.5"
         self.exe_path: str = ""
         self.app_os = ""
