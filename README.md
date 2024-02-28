@@ -3,9 +3,8 @@
 
 [![PyPI version](https://badge.fury.io/py/palworld_admin.svg)](https://badge.fury.io/py/palworld_admin)
 
-
   <image src="https://github.com/Lukium/palworld-admin/assets/99280463/55453c83-f0c4-44e1-b841-b15305243fe3"></image>
-  <image src="https://github.com/Lukium/palworld-admin/assets/99280463/ec62e3fc-6e90-4985-96ef-71b0cfbc6508"></image>
+  <image src="https://github.com/Lukium/palworld-admin/assets/99280463/87cff134-a9bd-4b82-9e8b-a873100dba88"></image>
 </p>
 
 ## Feature Roadmap
