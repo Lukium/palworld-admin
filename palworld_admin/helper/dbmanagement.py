@@ -48,11 +48,17 @@ def update_object_fields(obj, data, fields) -> list:
     Returns:
     A list of updated field names.
     """
+    ignored_fields = [
+        "rcon_port",
+        "public_port",
+        "port",
+        "public_ip",
+    ]
     updated_fields = []
     for field in fields:
         if field in data:
             # if field is rcon_port, skip it
-            if field == "rcon_port":
+            if field in ignored_fields:
                 continue
             if getattr(obj, field) != data[field]:
                 setattr(obj, field, data[field])

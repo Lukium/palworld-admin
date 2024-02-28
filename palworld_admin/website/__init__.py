@@ -9,15 +9,12 @@ from mimetypes import guess_type
 import os
 import uuid
 import shutil
-import sys
 
 # Must be included for pyinstaller to work
 from engineio.async_drivers import eventlet  # pylint: disable=unused-import
 import eventlet  # pylint: disable=unused-import disable=reimported
 
-from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
-from flask_migrate import Migrate, upgrade
 
 from flask import (
     Flask,
@@ -34,8 +31,6 @@ from flask import (
     request,
 )
 
-from waitress import serve
-
 from palworld_admin.rcon import (
     rcon_connect,
     resolve_address,
@@ -50,6 +45,7 @@ from palworld_admin.rcon import (
 from palworld_admin.servermanager import (
     check_install,
     install_server,
+    uninstall_server,
     run_server,
     check_server_running,
     backup_server,
@@ -68,19 +64,11 @@ from palworld_admin.classes import (
     Settings,
 )
 
-from .views import create_views
-
-
-def check_headers() -> dict:
-    """Check the headers to determine if the request is coming from a WebView2 browser."""
-    if "Sec-Ch-Ua" in request.headers:
-        if "WebView2" in request.headers["Sec-Ch-Ua"]:
-            webview_headers = {"webview": True}
-        else:
-            webview_headers = {"webview": False}
-        return webview_headers
-    else:
-        return {"webview": False}
+DEFAULT_VALUES: dict = app_settings.palworldsettings_defaults.default_values
+DESCRIPTIONS: dict = app_settings.palworldsettings_defaults.descriptions
+DEFAULT_SETTINGS_STRING: str = (
+    app_settings.palworldsettings_defaults.default_settings_string
+)
 
 
 def requires_auth(f):
@@ -95,7 +83,6 @@ def requires_auth(f):
                 url_for(
                     "login",
                     next=request.url,
-                    webview_headers=check_headers(),
                     management_mode=app_settings.localserver.management_mode,
                     version=app_settings.version,
                 )
@@ -119,10 +106,10 @@ def initialize_database_defaults():
     if not LauncherSettings.query.first():
         initial_launcher_settings = LauncherSettings(
             launch_rcon=True,
-            epicApp=False,
             useperfthreads=True,
             NoAsyncLoadingThread=True,
             UseMultithreadForDS=True,
+            query_port=27015,
             auto_backup=True,
             auto_backup_delay=3600,  # Default delay in seconds
             auto_backup_quantity=48,  # Default number of backups to keep
@@ -173,27 +160,8 @@ def initialize_database_defaults():
     db.session.commit()
 
 
-def apply_migrations():
-    """Apply any outstanding Alembic migrations."""
-    app = Flask(__name__)
-    app.secret_key = uuid.uuid4().hex
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
-    )
-
-    db.init_app(app)
-
-    with app.app_context():
-        Migrate(app, db)
-        upgrade(directory="migrations")
-    sys.exit(0)
-
-
-# Serve the Flask app with Waitress
 def flask_app():
-    """Run the Flask app with Waitress."""
-    # app = create_app()
-    # serve(app, host="0.0.0.0", port=8210)
+    """Run the Flask app with socketio."""
 
     if app_settings.dev:
         app = Flask(__name__)
@@ -230,7 +198,6 @@ def flask_app():
     db.init_app(app)
 
     with app.app_context():
-        Migrate(app, db)
         db.create_all()
         initialize_database_defaults()
 
@@ -246,7 +213,7 @@ def flask_app():
             pass
 
         # Double check that the server data was deleted
-        for root, dirs, files in os.walk(app_settings.localserver.data_path):
+        for _, dirs, files in os.walk(app_settings.localserver.data_path):
             if dirs or files:
                 message = "Error: Failed to delete server data"
                 reply["success"] = False
@@ -340,6 +307,18 @@ def flask_app():
 
         return jsonify(data)
 
+    @app.route("/", methods=["GET", "POST"])
+    @maybe_requires_auth
+    def main():
+        """Render the home page."""
+        return render_template(
+            "ui-test.html" if app_settings.dev_ui else "ui.html",
+            management_mode=app_settings.localserver.management_mode,
+            version=app_settings.version,
+            defaults=DEFAULT_VALUES,
+            descriptions=DESCRIPTIONS,
+        )
+
     @app.route("/query-db", methods=["POST"])
     @maybe_requires_auth
     def query_db():
@@ -365,7 +344,6 @@ def flask_app():
         @app.route("/login", methods=["GET", "POST"])
         def login():
             """Render the login page."""
-            webview_headers = session.get("webview_headers", None)
             management_mode = session.get("management_mode", None)
             if request.method == "POST":
                 if (
@@ -373,12 +351,11 @@ def flask_app():
                     == app_settings.localserver.management_password
                 ):
                     session["authenticated"] = True
-                    return redirect(url_for("views.main"))
+                    return redirect(url_for("main"))
                 else:
                     flash("Incorrect password. Please try again.")
             return render_template(
                 "login.html",
-                webview_headers=webview_headers,
                 management_mode=management_mode,
                 version=app_settings.version,
             )  # Ensure you have a login.html template
@@ -499,8 +476,8 @@ def flask_app():
         )
 
     # Import the views and register the blueprint
-    views = create_views()
-    app.register_blueprint(views, url_prefix="/")
+    # views = create_views()
+    # app.register_blueprint(views, url_prefix="/")
 
     socketio = SocketIO(app, async_mode="eventlet")
     app_settings.localserver.socket = socketio
@@ -588,6 +565,7 @@ def flask_app():
             reply = {
                 "command": "socket connect",
                 "consoleMessage": message,
+                "toastMessage": message,
             }
 
             return reply
@@ -1062,7 +1040,7 @@ def flask_app():
                         ],
                     }
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 message = f"Error: {e}"
                 success = False
 
@@ -1070,6 +1048,48 @@ def flask_app():
             reply["outputMessage"] = message
             reply["toastMessage"] = message
             reply["success"] = success
+
+            return reply
+
+        return process_frontend_command(func, indicator="IO")
+
+    @socketio.on("uninstall_server", namespace="/socket")
+    def uninstall_server_socket():
+        def func():
+            result = uninstall_server()
+            logging.info("Uninstall Server Result: %s", result)
+
+            message = result["message"]
+            reply = {
+                "command": "uninstall server",
+                "success": result["status"] == "success",
+                "consoleMessage": message,
+                "outputMessage": message,
+                "toastMessage": message,
+            }
+
+            if result["status"] == "success":
+                app_settings.localserver.installing = False
+                app_settings.localserver.running = False
+                app_settings.localserver.expected_to_be_running = False
+                app_settings.localserver.connected = False
+                app_settings.localserver.ip = ""
+                app_settings.localserver.port = 0
+                app_settings.localserver.password = ""
+                app_settings.localserver.shutting_down = False
+                app_settings.localserver.restarting = False
+                app_settings.localserver.last_launcher_args = None
+                app_settings.localserver.last_backup = None
+                app_settings.localserver.run_auto_backup = False
+                app_settings.localserver.backup_interval = 0
+                app_settings.localserver.backup_retain_count = 0
+                app_settings.localserver.last_backup = None
+                app_settings.localserver.last_cpu_usage = 0
+                app_settings.localserver.last_ram_usage = 0
+                app_settings.localserver.running_check_count = 0
+                app_settings.localserver.rcon_monitoring_connection_error_count = (
+                    0
+                )
 
             return reply
 

@@ -17,8 +17,6 @@ from palworld_admin.helper.dbmanagement import save_user_settings_to_db
 from palworld_admin.helper.fileprocessing import file_to_lines
 from palworld_admin.helper.networking import get_public_ip, get_local_ip
 
-from palworld_admin.rcon import rcon_save
-
 from palworld_admin.settings import app_settings
 
 
@@ -516,7 +514,8 @@ def run_server(launcher_args: dict = None):
     if log:
         logging.info("Running server. Launcher Args: %s", launcher_args)
     rcon_port = launcher_args["rcon_port"]
-    epicapp = launcher_args["epicApp"]
+    public_port = launcher_args["public_port"]
+    query_port = launcher_args["query_port"]
     useperfthreads = launcher_args["useperfthreads"]
     noasyncloadingthread = launcher_args["NoAsyncLoadingThread"]
     usemultithreadfords = launcher_args["UseMultithreadForDS"]
@@ -531,8 +530,8 @@ def run_server(launcher_args: dict = None):
     ]
     ram_restart_trigger = launcher_args["ram_restart_trigger"]
 
-    # Construct the command with necessary parameters and flags, add - for all flags except epicapp
-    cmd = f'"{app_settings.localserver.launcher_path}"{" EpicApp=Palserver" if epicapp else ""}{" -publiclobby " if publiclobby else ""}{f" -RCONPort={rcon_port}"}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
+    # Construct the command with necessary parameters and flags
+    cmd = f'"{app_settings.localserver.launcher_path}"{" -publiclobby" if publiclobby else ""}{f" -port={public_port}"}{f" -RCONPort={rcon_port}"}{f" -queryport={query_port}"}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
 
     try:
         if log:
@@ -940,6 +939,9 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
                     settings_line.find("(") + 1 : settings_line.find(")")
                 ]
 
+                # create a copy of settings_to_change called settings_changed
+                settings_left_to_change = settings_to_change.copy()
+
                 # Break down and sort the settings
                 settings = settings_string.split(",")
                 modified_settings = []
@@ -950,8 +952,14 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
                     if active_setting[0] in settings_to_change:
                         setting = f"{active_setting[0]}={settings_to_change[active_setting[0]]}"
                         modified_settings.append(setting)
+                        settings_left_to_change.pop(active_setting[0])
                     else:
                         modified_settings.append(setting)
+
+                # Add any new settings that were not found in the existing settings
+                for key, value in settings_left_to_change.items():
+                    new_setting = f"{key}={value}"
+                    modified_settings.append(new_setting)
 
                 # Rebuild the modified settings string
                 modified_settings_string = ",".join(modified_settings)
@@ -984,7 +992,9 @@ def first_run():
     logging.info("Running server for the first time to create initial files.")
     launcher_args = {
         "rcon_port": "25575",
-        "epicApp": False,
+        "port": "8211",
+        "public_port": "8211",
+        "query_port": "27015",
         "useperfthreads": True,
         "NoAsyncLoadingThread": True,
         "UseMultithreadForDS": True,
@@ -1011,6 +1021,7 @@ def first_run():
             settings_to_change = {  # Used to enable RCON
                 "RCONEnabled": "True",
                 "AdminPassword": '"admin"',
+                "bShowPlayerList": "False",
             }
             rcon_enabled = update_palworld_settings_ini(settings_to_change)
             if rcon_enabled["status"] == "success":
@@ -1227,12 +1238,7 @@ def generate_world_option_save(data: dict) -> dict:
     # subprocess.run(["python3", "convert.py", "WorldOption.sav.json"])
     convert_json_to_sav("WorldOption.sav.json", "WorldOption.sav")
 
-    # Load WorldOption.sav into memory
-    # with open("WorldOption.sav", "rb") as sav_file:
-    #     sav_data = io.BytesIO(sav_file.read())
-
     # Delete the file from the filesystem
-    # os.remove("WorldOption.sav")
     os.remove("WorldOption.sav.json")
 
     # move WoldOption.sav to app_settings.localserver.sav_path directory
@@ -1259,13 +1265,102 @@ def generate_world_option_save(data: dict) -> dict:
     # Remove original WorldOption.sav file
     os.remove("WorldOption.sav")
 
-    # # Set the filename for the file-like object
-    # sav_data.seek(0)
-    # return send_file(
-    #     sav_data,
-    #     mimetype="application/octet-stream",
-    #     as_attachment=True,
-    #     download_name="WorldOption.sav",
-    # )
+    return result
+
+
+def uninstall_server():
+    """Uninstall Palworld Dedicated Server and SteamCMD"""
+    result = {}
+    if app_settings.app_os == "Windows":
+        try:
+            # Uninstall Palworld Dedicated Server
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            subprocess.run(
+                [
+                    "powershell",
+                    "Remove-Item",
+                    "-Path",
+                    os.path.dirname(app_settings.localserver.steamcmd_path),
+                    "-Recurse",
+                ],
+                capture_output=True,
+                check=True,
+                startupinfo=startupinfo,
+                text=True,
+            )
+
+            # Verify that the directory was removed
+            if not os.path.exists(
+                os.path.dirname(app_settings.localserver.steamcmd_path)
+            ):
+                result["status"] = "success"
+                result["message"] = (
+                    "Palworld Dedicated Server uninstalled successfully"
+                )
+            else:
+                result["status"] = "error"
+                result["message"] = (
+                    "Error uninstalling Palworld Dedicated Server"
+                )
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["message"] = "Error uninstalling Palworld Dedicated Server"
+            logging.info("Error uninstalling Palworld Dedicated Server: %s", e)
+    else:
+        home_dir = os.environ["HOME"]
+        try:
+            # Uninstall Palworld Dedicated Server
+            subprocess.run(
+                [
+                    "sudo",
+                    "apt-get",
+                    "remove",
+                    "steamcmd",
+                    "-y",
+                ],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "rm",
+                    "-rf",
+                    f"{home_dir}/.local/share/Steam",
+                ],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "rm",
+                    "-rf",
+                    f"{home_dir}/.steam",
+                ],
+                check=True,
+            )
+
+            # check that /usr/games/steamcmd does not exist
+            if not os.path.exists("/usr/games/steamcmd"):
+                steamcmd_uninstalled = True
+
+            # Verify that directories were removed
+            if not os.path.exists(
+                f"{home_dir}/.local/share/Steam"
+            ) and not os.path.exists(f"{home_dir}/.steam"):
+                directories_removed = True
+
+            if steamcmd_uninstalled and directories_removed:
+                result["status"] = "success"
+                result["message"] = (
+                    "Palworld Dedicated Server uninstalled successfully"
+                )
+            else:
+                result["status"] = "error"
+                result["message"] = (
+                    "Error uninstalling Palworld Dedicated Server"
+                )
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["message"] = "Error uninstalling Palworld Dedicated Server"
+            logging.info("Error uninstalling Palworld Dedicated Server: %s", e)
 
     return result

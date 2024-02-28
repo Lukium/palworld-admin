@@ -45,6 +45,10 @@ TEMPLATES = [
     "ui.html",
     "login.html",
 ]
+DEV_TEMPLATES = [
+    "ui-test.html",
+    "login.html",
+]
 STATIC_FILES = [
     # "images/palworld-logo.png",
     # "images/icon.png",
@@ -57,12 +61,11 @@ class Settings:
 
     def __init__(self):
         self.dev: bool = False
+        self.dev_ui: bool = False
         self.no_ui: bool = False
-        self.version: str = "0.8.4"
+        self.version: str = "0.8.5"
         self.exe_path: str = ""
         self.app_os = ""
-        self.server_os = ""
-        # self.main_ui = BrowserManager()
         self.main_ui = None
         self.ready = False
         self.force_error = False
@@ -70,7 +73,11 @@ class Settings:
 
         self.palworldsettings_defaults = PalWorldSettings()
         self.localserver = LocalServer()
-        self.memorystorage = MemoryStorage(BASE_URL, TEMPLATES, STATIC_FILES)
+        self.memorystorage = MemoryStorage(
+            BASE_URL,
+            DEV_TEMPLATES if self.dev_ui else TEMPLATES,
+            STATIC_FILES,
+        )
 
         self.pyinstaller_mode: bool = False
 
@@ -353,21 +360,6 @@ class Settings:
                 os.system(f"kill -9 {pid}")
 
         Thread(target=monitor, daemon=True).start()
-
-    # def review_cli(self):
-    #     """Parse command line arguments."""
-    #     try:
-    #         parsed_args = parse_cli()
-    #         if parsed_args["MigrateDatabase"]:
-    #             self.no_ui = True
-
-    #         return parsed_args
-    #     except ValueError as e:
-    #         print(f"Error: {e}")
-    #         # Optionally, you can also provide guidance or next steps:
-    #         print("Use -h for help.")
-    #         # Exiting with a non-zero status code to indicate that an error occurred
-    #         exit(1)
 
 
 app_settings = Settings()

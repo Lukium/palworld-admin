@@ -29,10 +29,10 @@ class LauncherSettings(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     launch_rcon = db.Column(db.Boolean, default=True)
-    epicApp = db.Column(db.Boolean, default=True)
     useperfthreads = db.Column(db.Boolean, default=True)
     NoAsyncLoadingThread = db.Column(db.Boolean, default=True)
     UseMultithreadForDS = db.Column(db.Boolean, default=True)
+    query_port = db.Column(db.Integer, default=27015)
     auto_backup = db.Column(db.Boolean, default=True)
     auto_backup_delay = db.Column(db.Integer, default=3600)
     auto_backup_quantity = db.Column(db.Integer, default=48)

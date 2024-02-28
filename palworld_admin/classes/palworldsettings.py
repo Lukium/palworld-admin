@@ -70,6 +70,7 @@ class PalWorldSettings:
             "Region": '""',
             "bUseAuth": "True",
             "BanListURL": '"https://api.palworldgame.com/api/banlist.txt"',
+            "bShowPlayerList": "False",
         }
         self.descriptions = {
             "Difficulty": "Adjusts the overall difficulty of the game.",

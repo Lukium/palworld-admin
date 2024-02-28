@@ -18,10 +18,10 @@ if platform.system() == "Linux":
     sys.path.append(os.getcwd())
 
 # fmt: off
-from palworld_admin.helper.dbmigration import apply_migrations     # pylint: disable=wrong-import-position
+from palworld_admin.helper.dbmigration import apply_migrations      # pylint: disable=wrong-import-position
 from palworld_admin.helper.cli import parse_cli                     # pylint: disable=wrong-import-position
 from palworld_admin.settings import app_settings                    # pylint: disable=wrong-import-position
-from palworld_admin.website import flask_app      # pylint: disable=wrong-import-position
+from palworld_admin.website import flask_app                        # pylint: disable=wrong-import-position
 # fmt: on
 
 
@@ -55,10 +55,10 @@ def main():
         time.sleep(0.1)
 
     app = flask_app()
-    socketio = SocketIO(app)
-    socketio.run(app, host="0.0.0.0", port=8210)
+    return app
 
 
 # Run the app
 if __name__ == "__main__":
-    main()
+    socketio = SocketIO(main())
+    socketio.run(main(), host="0.0.0.0", port=8210)
