@@ -125,7 +125,7 @@ Instead I recommend creating a directory like c:\Palworld-Admin or c:\Palworld S
 
 
 ### 2. Undefined values in Server Manager after importing server (See screenshot below):
-- This might happen if you have changed the default formatting on the PalWorldSettings.ini file. Palworld A.D.M.N.I.N. expects the file to be in its original formatting. The values can all be changed, but the formatting must remain intact (All options in a single line)<br>
+- This might happen if you have changed the default formatting on the PalWorldSettings.ini file. Palworld A.D.M.I.N. expects the file to be in its original formatting. The values can all be changed, but the formatting must remain intact (All options in a single line)<br>
 - Another possibility is that there are commas inside values surrounded by "" like your Server Name or Description. At this time this is a limitation of the app that I intend to eventually remove. So for now, no commas in the values.
 ![image](https://github.com/Lukium/palworld-admin/assets/99280463/ca9facea-c3c4-4550-b828-8db4810c8eab)
 
