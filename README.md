@@ -5,7 +5,7 @@
 
 
   <image src="https://github.com/Lukium/palworld-admin/assets/99280463/55453c83-f0c4-44e1-b841-b15305243fe3"></image>
-  <image src="https://github.com/Lukium/palworld-admin/assets/99280463/ec62e3fc-6e90-4985-96ef-71b0cfbc6508"></image>
+  <image src="https://github.com/Lukium/palworld-admin/assets/99280463/adf12f14-ae2a-4191-bd04-b86b4e7f8fd5"></image>
 </p>
 
 ## Feature Roadmap
