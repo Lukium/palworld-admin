@@ -2,7 +2,6 @@
 
 from datetime import datetime
 import filecmp
-import io
 import json
 import logging
 import os
@@ -94,7 +93,7 @@ def check_world_sav_exists() -> dict:
 
 
 def read_server_settings():
-    """Read server settings from the settings file."""
+    """Read and parse server settings from the settings file, handling special cases."""
     result = {}
     logging.info(
         "Reading settings file from %s", app_settings.localserver.ini_path
@@ -103,44 +102,46 @@ def read_server_settings():
         with open(
             app_settings.localserver.ini_path, "r", encoding="utf-8"
         ) as file:
-            lines = file.readlines()
+            content = file.read()
             result["status"] = "success"
-            result["value"] = lines
+            result["value"] = content
             logging.info("Read settings file successfully.")
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
         result["value"] = "Error reading settings file"
         logging.error("Error reading settings file: %s", e)
         return result
+
     # Extract the settings from the settings file
     try:
-        for _, line in enumerate(lines):
-            if line.startswith("OptionSettings="):
-                # Extract the settings string
-                settings_line = line
-                settings_string = settings_line[
-                    settings_line.find("(") + 1 : settings_line.find(")")
-                ]
+        settings_start = content.find("OptionSettings=(") + len(
+            "OptionSettings=("
+        )
+        settings_end = content.rfind(")")  # Find the last ')' in the content
+        settings_string = content[settings_start:settings_end]
 
-                # Break down and sort the settings
-                settings = settings_string.split(",")
-                settings_dict = {}
-                for setting in settings:
-                    key = setting.split("=")[0]
-                    value = setting.split("=")[1]
-                    settings_dict[key] = value
-                result["status"] = "success"
-                result["settings"] = settings_dict
-                # Get the local IP address
-                local_ip = get_local_ip()
-                if not local_ip:
-                    result["status"] = "error"
-                    result["message"] = "Error getting local IP address"
-                result["settings"]["LocalIP"] = local_ip
+        pattern = re.compile(r'(\w+)=("[^"]*"|[^,]*)')
+        settings = pattern.findall(settings_string)
+
+        settings_dict = {
+            key.strip(): value.strip('"') for key, value in settings
+        }
+        result["status"] = "success"
+        result["settings"] = settings_dict
+
+        # Get the local IP address
+        local_ip = get_local_ip()
+        if not local_ip:
+            result["status"] = "error"
+            result["message"] = "Error getting local IP address"
+        else:
+            result["settings"]["LocalIP"] = local_ip
+
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
         result["value"] = "Error processing settings file"
         logging.error("Error processing settings file: %s", e)
+
     return result
 
 
@@ -901,10 +902,15 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
     """Update the PalWorld settings file."""
     result = {}
 
-    if settings_to_change is None:
-        result["status"] = "error"
-        result["message"] = "No settings to change provided"
-        return result
+    def quote_value_if_needed(value):
+        # Check if the value is already properly quoted
+        if value.startswith('"') and value.endswith('"'):
+            return value  # Return the value as is if it's already quoted
+
+        # Check if the value contains special characters or spaces and needs to be quoted
+        if any(char in value for char in " ,()") or " " in value:
+            return f'"{value}"'  # Quote the value
+        return value  # Return as is if no quoting is needed
 
     logging.info(
         "Updating PalWorld settings file. Settings to change:\n%s",
@@ -931,13 +937,25 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
         lines = lines_read["lines"]
 
     try:
+        line: str
         for i, line in enumerate(lines):
             if line.startswith("OptionSettings="):
                 # Extract the settings string
-                settings_line = line
-                settings_string = settings_line[
-                    settings_line.find("(") + 1 : settings_line.find(")")
-                ]
+                settings_line: str = line
+                settings_string_start = settings_line.find("(") + 1
+                settings_string_end = settings_line.rfind(")")
+
+                if settings_string_end > settings_string_start:
+                    settings_string = settings_line[
+                        settings_string_start:settings_string_end
+                    ]
+                else:
+                    result["status"] = "error"
+                    result["message"] = (
+                        "Error reading settings file, settings_string_end"
+                        + " is less than settings_string_start"
+                    )
+                    return result
 
                 # create a copy of settings_to_change called settings_changed
                 settings_left_to_change = settings_to_change.copy()
@@ -946,20 +964,27 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
                 settings = settings_string.split(",")
                 modified_settings = []
                 for setting in settings:
-                    key = setting.split("=")[0]
-                    value = setting.split("=")[1]
-                    active_setting = (key, value)
-                    if active_setting[0] in settings_to_change:
-                        setting = f"{active_setting[0]}={settings_to_change[active_setting[0]]}"
+                    key, _, value = setting.partition("=")
+                    key = key.strip()
+                    if key in settings_to_change:
+                        # Quote the new value if necessary, without escaping quotes
+                        new_value = quote_value_if_needed(
+                            settings_to_change[key]
+                        )
+                        setting = f"{key}={new_value}"
                         modified_settings.append(setting)
-                        settings_left_to_change.pop(active_setting[0])
+                        settings_left_to_change.pop(key)
                     else:
-                        modified_settings.append(setting)
+                        # Ensure existing values are properly handled
+                        modified_settings.append(
+                            f"{key}={quote_value_if_needed(value)}"
+                        )
 
                 # Add any new settings that were not found in the existing settings
                 for key, value in settings_left_to_change.items():
-                    new_setting = f"{key}={value}"
-                    modified_settings.append(new_setting)
+                    modified_settings.append(
+                        f"{key}={quote_value_if_needed(value)}"
+                    )
 
                 # Rebuild the modified settings string
                 modified_settings_string = ",".join(modified_settings)
