@@ -8,6 +8,41 @@
   <image src="https://github.com/Lukium/palworld-admin/assets/99280463/adf12f14-ae2a-4191-bd04-b86b4e7f8fd5"></image>
 </p>
 
+## **Getting Started:**
+1. Choose a version:<br>
+  A. palworld-admin.exe and palworld-admin-console.exe are bigger (because they include an Electron App). **While in development, I recommend using the -console version as it helps with troubleshooting**<br>
+  B. palworld-admin-no-ui.exe (Windows) and palworld-admin-linux (Linux) are smaller and only run the webserver, which can be accessed via your browser on port 8210<br>
+2. Download the app, **on the machine the server will be run on, matching the Operating System** (Download one of the .exe on windows, and the -linux if running on linux)
+3. If on windows, **ensure that the app is not in any subdirectory of `c:\users`** otherwise the SteamCMD installtion will fail. I recommend something like `c:\Palworld-Dedicated-Server` or something similar. The directory should be empty at this point.
+4. Run the application
+5. Click on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/b7c2e86c-03c0-4ca2-8955-e1afe3cc9741)
+ to Install a clean version of the dedicated server. Please wait for it to complete the operation (It will download/install SteamCMD and then download Palworld Dedicated Server)
+6. If you have an existing server that you want to transfer the data in, click on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/7bdc6228-5ce6-4793-9bbc-a39cb0c4c73d)
+, then navigate into the /Saved directory of the existing server and click on upload. This will import the existing server data into Palworld Admin.
+7. For security, Palworld Admin will not launch the server unless the password is at least 8 characters long. This can be changed by click on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/03474254-3e91-4ba6-8cc3-12bb506cfc76), then setting the password field next to RCONEnabled, then clicking on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/5abf91a8-64e8-43c8-9da7-f0ba80cbf255) to save your settings. **Note, this screen is where you can access all other server settings as well.** With everything set, you can now return to the main screen by clicking on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/343a2d26-e1d5-4a93-83dd-b80d197bd9b0).
+8. You should now be able to start your server by clicking on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/d13841d2-5268-4c1f-87ea-92fdc95020d6).
+9. To use RCON Features, enter the Server IP/Port/RCON Password on the top of the main window and click on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/a54d69dc-17fe-4542-9ee6-c2c86fcb898a).<br>
+**Note:** when managing the server locally (either on same machine or same LAN) use the Local IP displayed on the top of the settings window. When managing the server remotely (over the internet) enter the Public IP, and ensure that port forwarding has been done on port 8210.
+
+## **To access the Remote Server Manager:**
+- Run the binary on your host using the -r -mp flags:<br>
+  For Windows: `palworld-admin.exe -r -mp [managementpassword]` _Also works with -console version_<br>
+  For Linux: `palworld-admin -r -mp [managementpassword]` _Make sure to `chmod + x` first_
+- Make sure port 8210 is open and forwarded
+- Access it with your browser of choice by navigating to http://[HOSTIP]:8210
+
+**Important:**
+The remote manager does not have RCON built in. You still want to use the windows version to access the server managed in Linux via RCON
+
+## How to run directly from the code:
+- Install python, at least 3.11
+- Install poetry `pip install poetry` make sure you add it to your PATH
+- Download the code to a directory
+- From that directory run `poetry install`
+- Then run `poetry run python main.py`
+- Profit
+
+
 ## Feature Roadmap
 <details open>
   <summary><b>Server Manager:<b></summary>
@@ -75,48 +110,6 @@
 - ⚪ Create RCON Log<br>
 - 🟢 display HEX UID for easy Save Identification
 </details>
-
-## **Installation:**
-- Simply download the binary that matches your OS and run it.
-- I recommend creating something like c:\Palworld Server, or c:\Palworld-Admin, or something simple like this
-- **IMPORTANT:** DO NOT RUN IT FROM YOUR DESKTOP, OR ANYTHING LIKE MY DOCUMENTS OR DOWNLOADS (DIRECTORIES THAT CAN BE SYNCED BY ONE DRIVE).<br>
-This will cause the Dedicated Server Install to fail.
-
-## **To access the Remote Server Manager:**
-- Run the binary on your host using the -r -mp flags:<br>
-  For Windows: `palworld-admin.exe -r -mp [managementpassword]` _Also works with -console version_<br>
-  For Linux: `palworld-admin -r -mp [managementpassword]` _Make sure to `chmod + x` first_
-- Make sure port 8210 is open and forwarded
-- Access it with your browser of choice by navigating to http://[HOSTIP]:8210
-
-**Important:**
-The remote manager does not have RCON built in. You still want to use the windows version to access the server managed in Linux via RCON
-
-## How to run directly from the code:
-- Install python, at least 3.11
-- Install poetry `pip install poetry` make sure you add it to your PATH
-- Download the code to a directory
-- From that directory run `poetry install`
-- Then run `poetry run python main.py`
-- Profit
-
-## How to transition from an existing server:
-- **MAKE A BACKUP**
-- Download the newest version of the app
-- Go to Local Server Manager in the main menu
-- Click `Install | Update` > `Confirm` > Wait for it to finish
-- Go to your backup and copy the directory:
-`steamapps/common/PalServer/Pal/Saved` **FROM** your backup and overwrite that same directory inside the steamcmd that my app creates
-- Restart the app > Local Server Manager
-- You should now see the existing options of your server
-- Modify them as needed, including adding an Admin Password (this is the RCON password as well)
-- Click the button to update settings (This will save the changes)
-- Click Start Server, take note of the Local IP / RCON port / Admin Pass
-- Switch to RCON window
-- Enter the Local IP / RCON port / Admin
-- Click Connect
-You should now be connected to the server via RCON
-
 
 ## Troubleshooting:
 ### 1. Failure to Install/Launch Server:
