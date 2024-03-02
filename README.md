@@ -116,23 +116,19 @@ The remote manager does not have RCON built in. You still want to use the window
 The most likely cause for this is the user running Palworld A.D.M.I.N. from the desktop, a folder in the desktop, or a folder in a windows directory that's "syncable" like Documents / Downloads / etc.<br>
 Instead I recommend creating a directory like c:\Palworld-Admin or c:\Palworld Server.
 
+### 2. Unhandled exception in script with `OSError: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted`
+(See screenshot below) This means that the webserver is already running (maybe the application didn't fully close before). Check your task manager and close palworld-admin manually before trying to restart the application. <br>
+![image](https://github.com/Lukium/palworld-admin/assets/99280463/2b06d249-874a-41d9-a602-e20be741340a)
 
-### 2. Undefined values in Server Manager after importing server (See screenshot below):
-- This might happen if you have changed the default formatting on the PalWorldSettings.ini file. Palworld A.D.M.I.N. expects the file to be in its original formatting. The values can all be changed, but the formatting must remain intact (All options in a single line)<br>
-- Another possibility is that there are commas inside values surrounded by "" like your Server Name or Description. At this time this is a limitation of the app that I intend to eventually remove. So for now, no commas in the values.
-![image](https://github.com/Lukium/palworld-admin/assets/99280463/ca9facea-c3c4-4550-b828-8db4810c8eab)
+### 3. Unhandled exception in script with `sqlite3.OperationalError`
+(See screenshot below) This means that the application database need to be upgraded. Re-run the application with -mdb flag, e.g., `palworld-admin.exe -mdb` and this should upgrade the database to current.
+![image](https://github.com/Lukium/palworld-admin/assets/99280463/bdd32178-24a7-4920-aa27-d35d10990061)
 
+### 4. I set a RAM Auto-Restart to 16GB, my task manager says that the server is using ~16100mb, but the server has not restarted, how come?
+1 GB = 1024 MB. This means that the server will not restart at 16000MB, because 16000 MB is not 16GB. 16 GB = 16384 MB. Also, The logic is that the server must exceed the limit 3 times a row (to prevent unecessary restarts should it just be a random spike). You should see notifications in the application saying that it has been triggered 1/3, 2/3 and 3/3, before a restart.
 
-### 3. Webview2 Runtime Requirement:
-If you are running a non-standard version of windows (for example, Remote/Virtual Environment, Windows Server) you will likely need to install the Webview2 runtime from Microsoft, which can be found [here](https://go.microsoft.com/fwlink/p/?LinkId=2124703). More information - [here](https://developer.microsoft.com/en-us/microsoft-edge/webview2/?form=MA13LH#download)
-You will know this is the case if upon opening the app, it looks like either of the following screenshots:<br>
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/582eac35-40f5-4a17-abec-55da4389a356)
-![image](https://github.com/Lukium/palworld-servertools/assets/99280463/2f0d585e-af54-4236-9426-7cf36fee7c90)
-
-
-### 4. Crushed / Squeezed UI
-If the UI looks like the screenshot below, please increase the resolution of your display. If using a remote connection where you can't change the Resolution settings, you can usually do it from the Remote Client Options in the App that you use to connect (before actually making the Remote Desktop Connection):
-![image](https://github.com/Lukium/palworld-admin/assets/99280463/59a62462-498e-4795-a575-5d803a5afef1)
+### 5. Repeated `Error: list index out of range` / I can't kick a player in my server
+This typically results from someone in your playerlist having a name that breaks RCON. Unfortunately, Palworld's RCON is very rudimentary and names with non-ASCII characters messes with it. Another symptom is being unable to kick/ban a player via RCON. Tell your players to use names with ASCII characters until the ingame-RCON is improved upon.
 
 
 Credits:
