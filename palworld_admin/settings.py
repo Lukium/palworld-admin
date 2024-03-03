@@ -60,9 +60,9 @@ class Settings:
     This class is used to store and manage the server settings."""
 
     def __init__(self):
-        self.dev: bool = True
+        self.dev: bool = False
         self.dev_ui: bool = False
-        self.no_ui: bool = False
+        self.no_ui: bool = True
         self.version: str = "0.8.6"
         self.exe_path: str = ""
         self.app_os = ""
