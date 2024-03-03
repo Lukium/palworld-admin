@@ -118,12 +118,21 @@ if (!gotTheLock) {
         createWindow();
         // Register a 'CommandOrControl+Shift+I' shortcut listener.
         const ret = globalShortcut.register('CommandOrControl+Shift+I', () => {
-            mainWindow.webContents.openDevTools();
+            if (mainWindow.isFocused()) {
+                const isDevToolsOpened = mainWindow.webContents.isDevToolsOpened();
+                if (isDevToolsOpened) {
+                    mainWindow.webContents.closeDevTools();
+                } else {
+                    mainWindow.webContents.openDevTools();
+                }
+            }
         });
 
         // Register a 'CommandOrControl+R' shortcut listener.
         const ret2 = globalShortcut.register('CommandOrControl+R', () => {
-            mainWindow.reload();
+            if (mainWindow.isFocused()) {
+                mainWindow.reload();
+            }
         });
 
         // Check if the shortcut is registered.

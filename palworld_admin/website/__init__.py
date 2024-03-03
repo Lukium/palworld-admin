@@ -561,11 +561,9 @@ def flask_app():
         def func():
             app_settings.current_client = request.sid
             logging.info("Client connected to socket: %s", request.sid)
-            message = f"Connected to Backend with SessionID: {request.sid}"
             reply = {
                 "command": "socket connect",
-                "consoleMessage": message,
-                "toastMessage": message,
+                "success": True,
             }
 
             return reply
@@ -668,7 +666,9 @@ def flask_app():
                 app_settings.localserver.port,
                 app_settings.localserver.password,
                 data["message"],
+                data["broadcastOrCommand"],
             )
+            # logging.info("RCON Broadcast Message Result: %s", message)
             reply = {
                 "command": "rcon broadcast",
                 "consoleMessage": message["message"],
@@ -840,7 +840,6 @@ def flask_app():
             reply = {
                 "command": "launch server",
                 "success": result["status"] == "success",
-                "consoleMessage": message,
                 "outputMessage": message,
                 "toastMessage": message,
             }
@@ -950,7 +949,6 @@ def flask_app():
             reply = {
                 "command": "backup server",
                 "success": result["status"] == "success",
-                "consoleMessage": message,
                 "outputMessage": message,
                 "toastMessage": message,
             }
@@ -1115,7 +1113,7 @@ def flask_app():
                 app_settings.localserver.port,
                 app_settings.localserver.password,
             )
-            logging.info("RCON Monitor Result: %s", result)
+            # logging.info("RCON Monitor Result: %s", result)
             if result["status"] == "success":
                 app_settings.localserver.rcon_monitoring_connection_error_count = (
                     0

@@ -33,7 +33,9 @@ def execute_rcon(ip_address, port, password, command, queue) -> None:
         queue.put(result.strip())
 
 
-def rcon_broadcast(ip_address, port, password, message) -> dict:
+def rcon_broadcast(
+    ip_address, port, password, message, broadcast_or_command: bool
+) -> dict:
     """Broadcast the specified message to the server."""
     result_queue = Queue()
     command_thread = threading.Thread(
@@ -42,7 +44,7 @@ def rcon_broadcast(ip_address, port, password, message) -> dict:
             ip_address,
             port,
             password,
-            f"broadcast {message}",
+            f"broadcast {message}" if broadcast_or_command else f"{message}",
             result_queue,
         ),
     )
@@ -56,9 +58,16 @@ def rcon_broadcast(ip_address, port, password, message) -> dict:
     if "Failed to execute command" in result:
         reply["status"] = "error"
         reply["message"] = "Broadcast Error"
+    elif "Unknown command" in result:
+        reply["status"] = "error"
+        reply["message"] = "Unknown command"
     else:
         reply["status"] = "success"
-        reply["message"] = f'Broadcasted "{message}" successfully'
+        reply["message"] = (
+            f'Broadcasted "{message}" successfully'
+            if broadcast_or_command
+            else f"{result}"
+        )
 
     return reply
 

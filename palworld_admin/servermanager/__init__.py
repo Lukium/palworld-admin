@@ -912,6 +912,11 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
             return f'"{value}"'  # Quote the value
         return value  # Return as is if no quoting is needed
 
+    def split_settings_string(settings_string):
+        # This regex pattern matches commas that are not inside quotes
+        pattern = r',\s*(?=(?:[^"]*"[^"]*")*[^"]*$)'
+        return re.split(pattern, settings_string)
+
     logging.info(
         "Updating PalWorld settings file. Settings to change:\n%s",
         settings_to_change,
@@ -961,9 +966,10 @@ def update_palworld_settings_ini(settings_to_change: dict = None):
                 settings_left_to_change = settings_to_change.copy()
 
                 # Break down and sort the settings
-                settings = settings_string.split(",")
+                settings = split_settings_string(settings_string)
                 modified_settings = []
                 for setting in settings:
+                    logging.info("Setting: %s", setting)
                     key, _, value = setting.partition("=")
                     key = key.strip()
                     if key in settings_to_change:
