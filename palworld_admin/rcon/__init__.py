@@ -86,7 +86,7 @@ def rcon_broadcast(
     return reply
 
 
-def rcon_connect(ip_address, port, password) -> dict:
+def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
     """Connect to the RCON server and retrieve the server name and version."""
     result_queue = Queue()
 
@@ -117,6 +117,8 @@ def rcon_connect(ip_address, port, password) -> dict:
         # Retrieve the result from the queue
         result: str = result_queue.get()
         logging.info("Base64 RCON Connection Result: %s", result)
+    else:
+        app_settings.localserver.base64_encoded = False
 
     reply = {}
     if "Failed to execute command" in result:
@@ -144,15 +146,16 @@ def rcon_connect(ip_address, port, password) -> dict:
         reply["message"] = "RCON Connected!"
         reply["server_name"] = result.split("]")[1].strip()
         reply["server_version"] = result.split("[")[1].split("]")[0].strip()
-        save_user_settings_to_db(
-            {
-                "rcon_last_connection": {
-                    "host": ip_address,
-                    "port": port,
-                    "password": password,
+        if not skip_save:
+            save_user_settings_to_db(
+                {
+                    "rcon_last_connection": {
+                        "host": ip_address,
+                        "port": port,
+                        "password": password,
+                    }
                 }
-            }
-        )
+            )
 
     return reply
 
@@ -170,6 +173,13 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
     # Retrieve the result from the queue
     result = result_queue.get()
     reply = {}
+
+    if "Failed to decode base64" in result:
+        rcon_connect(ip_address, port, password, skip_save=True)
+        return {
+            "status": "error",
+            "message": "Failed to decode base64, retrying connection...",
+        }
 
     # Use first line of result to determine if the command was successful,
     # expect "name,playeruid,steamid"

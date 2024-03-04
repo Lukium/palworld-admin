@@ -63,7 +63,7 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.8.8"
+        self.version: str = "0.8.9"
         self.exe_path: str = ""
         self.app_os = ""
         self.main_ui = None
