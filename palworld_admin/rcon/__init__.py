@@ -26,7 +26,12 @@ def execute_rcon(ip_address, port, password, command, queue) -> None:
         if log:
             logging.info("Using cached IP: %s", resolved_ip)
     host_port = f"{resolved_ip}:{port}"
-    result = execute(host_port, password, command).strip()
+    result = execute(
+        host_port,
+        password,
+        command,
+        base64_encoded=app_settings.localserver.base64_encoded,
+    ).strip()
     if log:
         logging.info("Command Output: %s\n", result)
     if result:
@@ -38,13 +43,22 @@ def rcon_broadcast(
 ) -> dict:
     """Broadcast the specified message to the server."""
     result_queue = Queue()
+    broadcast_command = (
+        "pgbroadcast"
+        if app_settings.localserver.palguard_installed
+        else "broadcast"
+    )
     command_thread = threading.Thread(
         target=execute_rcon,
         args=(
             ip_address,
             port,
             password,
-            f"broadcast {message}" if broadcast_or_command else f"{message}",
+            (
+                f"{broadcast_command} {message}"
+                if broadcast_or_command
+                else f"{message}"
+            ),
             result_queue,
         ),
     )
@@ -75,6 +89,8 @@ def rcon_broadcast(
 def rcon_connect(ip_address, port, password) -> dict:
     """Connect to the RCON server and retrieve the server name and version."""
     result_queue = Queue()
+
+    # Non-Base64 Connection Attempt
     command_thread = threading.Thread(
         target=execute_rcon,
         args=(ip_address, port, password, "Info", result_queue),
@@ -83,8 +99,25 @@ def rcon_connect(ip_address, port, password) -> dict:
     command_thread.join()  # Wait for the thread to complete
 
     # Retrieve the result from the queue
-    result = result_queue.get()
-    logging.info("RCON Connection Result: %s", result)
+    result: str = result_queue.get()
+    logging.info("Non-Base64 RCON Connection Result: %s", result)
+
+    if "Unknown command" in result:
+        # Switch to Base64 Connection
+        app_settings.localserver.base64_encoded = True
+
+        # Base64 Connection Attempt
+        command_thread = threading.Thread(
+            target=execute_rcon,
+            args=(ip_address, port, password, "Info", result_queue),
+        )
+        command_thread.start()
+        command_thread.join()  # Wait for the thread to complete
+
+        # Retrieve the result from the queue
+        result: str = result_queue.get()
+        logging.info("Base64 RCON Connection Result: %s", result)
+
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"

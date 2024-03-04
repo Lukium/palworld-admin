@@ -17,8 +17,10 @@ class LocalServer:
         self.executable: str = ""
         self.pid = None
         self.socket = None
+        self.palguard_installed: bool = False
 
         # RCON Variables
+        self.base64_encoded: bool = False
         self.connected: bool = False
         self.launch_rcon_on_startup: bool = False
         self.rcon_monitoring_interval = 2

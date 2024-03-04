@@ -1,6 +1,7 @@
 """Basic RCON client for servers."""
 
 import argparse
+import base64
 import platform
 import re
 import socket
@@ -193,6 +194,21 @@ class RemoteConsole:
                 # .decode("ascii", errors="ignore").rstrip("\x00")
             )
 
+            # function for checking if the response is base64 encoded
+            def is_base64_encoded(s):
+                try:
+                    _ = base64.b64decode(s).decode("utf-8")
+                    return True
+                except Exception:  # pylint: disable=broad-except
+                    return False
+
+            # print(f"Original Response: {response}")
+
+            # if the response is base64 encoded, decode it
+            if is_base64_encoded(response):
+                response = base64.b64decode(response).decode("utf-8")
+                # print(f"Decoded Response: {response}")
+
             return resp_type, reqid, response
 
 
@@ -251,7 +267,7 @@ def start(host_port, password):
         print(f"Failed to connect to RCON server: {e}", file=sys.stderr)
 
 
-def execute(host_port, password, *commands):
+def execute(host_port, password, *commands, base64_encoded: bool = False):
     """
     Execute one or more commands on the RCON server.
 
@@ -285,16 +301,15 @@ def execute(host_port, password, *commands):
             parts[0] + " " + parts[1] + " " + parts[2].replace(" ", "\x1F")
         )  # Replace spaces in the message
 
+    if base64_encoded:
+        command = base64.b64encode(command.encode("utf-8")).decode("utf-8")
+
     try:
         with RemoteConsole(host, port, password) as remote_console:
             req_id = remote_console.write(command)
             _, resp_req_id, data = remote_console.read()
             if req_id != resp_req_id:
                 return "Error: Invalid Password?"
-            #     print(
-            #         "Error: Invalid Password?",
-            #         file=sys.stderr,
-            #     )
 
             # print(colorize(data))
             return data

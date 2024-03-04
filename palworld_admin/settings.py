@@ -63,7 +63,7 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.8.7"
+        self.version: str = "0.8.8"
         self.exe_path: str = ""
         self.app_os = ""
         self.main_ui = None
@@ -91,6 +91,7 @@ class Settings:
         self.detect_virtual_machine()
         self.detect_cpu_cores()
         self.set_local_server_paths()
+        self.check_for_palguard()
         self.download_ui()
         self.launch_ui()
         self.monitor_shutdown()
@@ -298,6 +299,24 @@ class Settings:
         logging.info(
             "Virtual Machine: %s", self.localserver.is_virtual_machine
         )
+
+    def check_for_palguard(self):
+        """Check if PalGuard is installed."""
+        if self.app_os == "Windows":
+            palguard_path = os.path.join(
+                self.exe_path,
+                WINDOWS_BASE_LAUNCHER_PATH,
+                "Pal",
+                "Binaries",
+                "Win64",
+                "palguard.dll",
+            )
+            if os.path.exists(palguard_path):
+                self.localserver.palguard_installed = True
+                logging.info(
+                    "PalGuard installed: %s",
+                    self.localserver.palguard_installed,
+                )
 
     def detect_cpu_cores(self):
         """Detect the number of CPU cores."""
