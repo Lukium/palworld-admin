@@ -538,7 +538,9 @@ def run_server(launcher_args: dict = None):
         if log:
             logging.info("Starting server with command: %s", cmd)
         # Start the process and return the process object itself
-        subprocess.Popen(cmd, shell=True)
+        app_settings.localserver.server_process = subprocess.Popen(
+            cmd, shell=True
+        )
         identified = identify_process_by_name()
         if log:
             logging.info("Identified: %s", identified)
@@ -709,6 +711,7 @@ def check_server_running() -> dict:
                 result["value"] = True
                 result["cpu_usage"] = str(cpu_usage)
                 result["ram_usage"] = str(round(ram, 2))
+
                 if log:
                     logging.info(
                         "Server Monitoring:\nCPU Usage: %s\nRAM Usage: %s",

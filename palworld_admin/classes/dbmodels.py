@@ -6,6 +6,12 @@ from sqlalchemy.orm import relationship
 db = SQLAlchemy()
 
 
+class AlembicVersion(db.Model):
+    """Alembic version model for the application."""
+
+    version_num = db.Column(db.String(32), primary_key=True)
+
+
 class Settings(db.Model):
     """Settings model for the application."""
 

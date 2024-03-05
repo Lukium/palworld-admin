@@ -1,6 +1,7 @@
 """This file contains the class LocalServer"""
 
 import datetime
+import subprocess
 
 
 class LocalServer:
@@ -18,6 +19,7 @@ class LocalServer:
         self.pid = None
         self.socket = None
         self.palguard_installed: bool = False
+        self.server_process: subprocess.Popen = None
 
         # RCON Variables
         self.base64_encoded: bool = False

@@ -49,6 +49,10 @@ DEV_TEMPLATES = [
     "ui-test.html",
     "login.html",
 ]
+SUPPORTER_TEMPLATES = [
+    "ui-supporter.html",
+    "login.html",
+]
 STATIC_FILES = [
     # "images/palworld-logo.png",
     # "images/icon.png",
@@ -60,10 +64,13 @@ class Settings:
     This class is used to store and manage the server settings."""
 
     def __init__(self):
-        self.dev: bool = False
+        self.dev: bool = True
         self.dev_ui: bool = False
-        self.no_ui: bool = True
-        self.version: str = "0.8.9"
+        self.no_ui: bool = False
+        self.version: str = "0.9.0"
+        self.supporter_build: bool = False
+        self.supporter_version: str = "0.9.0"
+        self.alembic_version: str = "170971d44a48"
         self.exe_path: str = ""
         self.app_os = ""
         self.main_ui = None
@@ -75,7 +82,11 @@ class Settings:
         self.localserver = LocalServer()
         self.memorystorage = MemoryStorage(
             BASE_URL,
-            DEV_TEMPLATES if self.dev_ui else TEMPLATES,
+            (
+                DEV_TEMPLATES
+                if self.dev_ui
+                else SUPPORTER_TEMPLATES if self.supporter_build else TEMPLATES
+            ),
             STATIC_FILES,
         )
 
@@ -344,9 +355,12 @@ class Settings:
                         "palworld-admin-ui.exe",
                     )
 
-                logging.info("Launching UI: %s", ui_path)
-                self.main_ui = subprocess.Popen(ui_path)
-                logging.info("Launched UI.")
+                if not os.path.exists(ui_path):
+                    logging.info("UI not found, skipping launch.")
+                else:
+                    logging.info("Launching UI: %s", ui_path)
+                    self.main_ui = subprocess.Popen(ui_path)
+                    logging.info("Launched UI.")
             except Exception as e:  # pylint: disable=broad-except
                 logging.error("Failed to launch UI: %s", e)
                 sys.exit(1)

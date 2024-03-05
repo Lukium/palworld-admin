@@ -2,7 +2,10 @@
 
 import logging
 from queue import Queue
+import os
+import subprocess
 import threading
+import time
 
 from palworld_admin.helper.dbmanagement import save_user_settings_to_db
 from palworld_admin.rcon.rcon import execute, resolve_address
@@ -17,6 +20,12 @@ def execute_rcon(ip_address, port, password, command, queue) -> None:
     if not app_settings.localserver.connected:
         try:
             resolved_ip = resolve_address(ip_address)
+            if "Error" in resolved_ip:
+                result = {
+                    "status": "error",
+                    "message": "Error resolving IP, please try again",
+                }
+                return result
             app_settings.localserver.ip = resolved_ip
             logging.info("Resolved IP: %s", resolved_ip)
         except ValueError as e:
@@ -312,6 +321,7 @@ def rcon_save(ip_address, port, password) -> dict:
 
 def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
     """Shutdown the server gracefully with the specified delay and message."""
+
     result_queue = Queue()
     command_thread = threading.Thread(
         target=execute_rcon,
@@ -328,15 +338,125 @@ def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
 
     # Retrieve the result from the queue
     result = result_queue.get()
-    info = f"RCON Shutdown Result: {result}"
-    logging.info(info)
+    logging.info("RCON Shutdown Result: %s", result)
+
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
-        reply["message"] = "Shutdown Error"
+        reply["message"] = "Error sending shutdown command"
     else:
-        reply["status"] = "success"
-        reply["message"] = f"Server shutting down in {delay} seconds"
+        if app_settings.localserver.server_process:
+            # This means the server was started by Palworld ADMIN
+            logging.info(
+                "Shutting Down Server Process: %s",
+                app_settings.localserver.server_process,
+            )
+
+            shutdown_result_queue = Queue()
+
+            def monitor_server_shutdown(result_queue: Queue):
+                """Monitor the server process and wait for it to shut down."""
+                shutdown_timer = 0
+                # Sleep the amount of time specified in the delay before starting the monitoring
+                time.sleep(float(delay))
+                while app_settings.localserver.server_process.poll() is None:
+                    logging.info(
+                        "Waited %s seconds for server to shut down",
+                        shutdown_timer,
+                    )
+                    time.sleep(1)
+                    shutdown_timer += 1
+                    if shutdown_timer > 30:
+                        result_queue.put(False)
+                logging.info("Server has shut down, result placed in queue")
+                result_queue.put(True)
+
+            shutdown_thread = threading.Thread(
+                target=monitor_server_shutdown,
+                args=(shutdown_result_queue,),
+                daemon=True,
+            )
+            shutdown_thread.start()
+            shutdown_result = shutdown_result_queue.get()
+            logging.info("Shutdown Result Queue Received: %s", shutdown_result)
+
+            if shutdown_result:
+                reply["status"] = "success"
+                reply["message"] = "Server shutdown successfully"
+            else:
+                reply["status"] = "error"
+                reply["message"] = (
+                    "Server shutdown command sent successfully, "
+                    + "but shutdown monitor did not detect server shutdown"
+                )
+        else:
+            # This means the server was not started by Palworld ADMIN
+            # Monitor the server shutdown using its PID app_settings.localserver.pid
+            logging.info("Shutting down server not started by Palworld ADMIN")
+            logging.info("Server PID: %s", app_settings.localserver.pid)
+
+            shutdown_result_queue = Queue()
+
+            def process_exists(pid):
+                """Check if a process exists in a cross-platform manner."""
+                try:
+                    if app_settings.app_os == "Windows":
+                        # Windows-specific method
+                        result = subprocess.check_output(
+                            ["tasklist", "/fi", f"PID eq {pid}"],
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                        )
+                        if "No tasks are running" in result:
+                            return False
+                        else:
+                            return True
+                    else:
+                        # POSIX (Unix, Linux, etc.)
+                        os.kill(pid, 0)
+                except (
+                    subprocess.CalledProcessError,
+                    ProcessLookupError,
+                    OSError,
+                ):
+                    return False
+                return True
+
+            def monitor_server_shutdown(result_queue: Queue):
+                """Monitor the server process and wait for it to shut down."""
+                logging.info("Monitoring server shutdown")
+                shutdown_timer = 0
+                while process_exists(app_settings.localserver.pid):
+                    logging.info(
+                        "Waited %s seconds for server to shut down",
+                        shutdown_timer,
+                    )
+                    time.sleep(1)
+                    shutdown_timer += 1
+                    if shutdown_timer > 30:
+                        result_queue.put(False)
+                        break
+                logging.info("Server has shut down, result placed in queue")
+                result_queue.put(True)
+
+            shutdown_thread = threading.Thread(
+                target=monitor_server_shutdown,
+                args=(shutdown_result_queue,),
+                daemon=True,
+            )
+            shutdown_thread.start()
+            shutdown_result = shutdown_result_queue.get()
+            logging.info("Shutdown Result Queue Received: %s", shutdown_result)
+
+            if shutdown_result:
+                reply["status"] = "success"
+                reply["message"] = "Server shutdown successfully"
+            else:
+                reply["status"] = "error"
+                reply["message"] = (
+                    "Server shutdown command sent successfully, "
+                    + "but shutdown monitor did not detect server shutdown"
+                )
 
     return reply
 

@@ -58,6 +58,7 @@ from palworld_admin.settings import app_settings
 from palworld_admin.converter.convert import convert_json_to_sav
 from palworld_admin.classes import (
     db,
+    AlembicVersion,
     LauncherSettings,
     RconSettings,
     Connection,
@@ -102,6 +103,14 @@ def maybe_requires_auth(func):
 
 def initialize_database_defaults():
     """Initialize default records for the database."""
+    # Check if AlembicVersion exists, if not, create a default record
+    if not AlembicVersion.query.first():
+        initial_alembic_version = AlembicVersion(
+            version_num=app_settings.alembic_version
+        )
+        db.session.add(initial_alembic_version)
+    db.session.commit()
+
     # Check if LauncherSettings exists, if not, create a default record
     if not LauncherSettings.query.first():
         initial_launcher_settings = LauncherSettings(
@@ -312,9 +321,19 @@ def flask_app():
     def main():
         """Render the home page."""
         return render_template(
-            "ui-test.html" if app_settings.dev_ui else "ui.html",
+            (
+                "ui-test.html"
+                if app_settings.dev_ui
+                else (
+                    "ui-supporter.html"
+                    if app_settings.supporter_build
+                    else "ui.html"
+                )
+            ),
             management_mode=app_settings.localserver.management_mode,
             version=app_settings.version,
+            supporter_build=app_settings.supporter_build,
+            supporter_version=app_settings.supporter_version,
             defaults=DEFAULT_VALUES,
             descriptions=DESCRIPTIONS,
         )
@@ -358,6 +377,8 @@ def flask_app():
                 "login.html",
                 management_mode=management_mode,
                 version=app_settings.version,
+                supporter_build=app_settings.supporter_build,
+                supporter_version=app_settings.supporter_version,
             )  # Ensure you have a login.html template
 
         @app.route("/logout")
@@ -474,10 +495,6 @@ def flask_app():
             as_attachment=True,
             download_name="WorldOption.sav",
         )
-
-    # Import the views and register the blueprint
-    # views = create_views()
-    # app.register_blueprint(views, url_prefix="/")
 
     socketio = SocketIO(app, async_mode="eventlet")
     app_settings.localserver.socket = socketio
@@ -701,6 +718,7 @@ def flask_app():
     @socketio.on("rcon_shutdown", namespace="/socket")
     def rcon_shutdown_socket(data):
         def func(data):
+            app_settings.localserver.shutting_down = True
             message = rcon_shutdown(
                 app_settings.localserver.ip,
                 app_settings.localserver.port,
@@ -726,7 +744,7 @@ def flask_app():
                     app_settings.localserver.restarting = True
 
             app_settings.localserver.expected_to_be_running = False
-            app_settings.localserver.shutting_down = True
+            app_settings.localserver.shutting_down = False
             return reply
 
         return process_frontend_command(func, data)
@@ -1248,6 +1266,7 @@ def flask_app():
                 up_indicator = True
 
             timer += 0.5
+            # logging.info("Server Monitor Timer: %s", timer)
             # Use socketio.sleep for proper thread management
             socketio.sleep(0.5)
 

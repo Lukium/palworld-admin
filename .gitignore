@@ -6,6 +6,19 @@ __pycache__/
 # C extensions
 *.so
 
+#Art
+Graphics/
+
+# Nuitka
+nuitka-crash-report.xml
+main.build/
+main.dist/
+
+# InnoSetup
+*.iss
+Output/
+after-install.txt
+
 # UI Served by Server
 palworld_admin/website/static/
 palworld_admin/website/templates/

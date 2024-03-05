@@ -11,17 +11,33 @@ def parse_arguments():
     )
     parser.add_argument(
         "-mp",
-        "--ManagementPassword",
+        "--management-password",
         type=str,
         help="""Set the management password for the Server Manager.
 Must be at least 6 characters long.""",
     )
     parser.add_argument(
         "-r",
-        "--Remote",
+        "--remote",
         action="store_true",
         default=False,
         help="Set the management mode of the Server Manager to remote.",
+    )
+
+    parser.add_argument(
+        "-nui",
+        "--no-user-interface",
+        action="store_true",
+        default=False,
+        help="Start the application without the user interface.",
+    )
+
+    parser.add_argument(
+        "-nc",
+        "--no-console",
+        action="store_true",
+        default=False,
+        help="Start the application without the console.",
     )
 
     parser.add_argument(
@@ -33,18 +49,18 @@ Must be at least 6 characters long.""",
     )
 
     args = parser.parse_args()
-    if args.ManagementPassword:
+    if args.management_password:
         result["ManagementPassword"] = args.ManagementPassword
     else:
         result["ManagementPassword"] = ""
-    if args.Remote:
+    if args.remote:
         result["Remote"] = "remote"
-        if not args.ManagementPassword:
+        if not args.management_password:
             raise ValueError(
                 """You must set a management password when using remote mode.
 Use the -mp flag to set the password."""
             )
-        if len(args.ManagementPassword) < 6:
+        if len(args.management_password) < 6:
             raise ValueError(
                 "The management password must be at least 6 characters long."
             )
@@ -52,6 +68,8 @@ Use the -mp flag to set the password."""
         result["Remote"] = "local"
 
     result["MigrateDatabase"] = args.migrate_database
+    result["NoUserInterface"] = args.no_user_interface
+    result["NoConsole"] = args.no_console
     return result
 
 

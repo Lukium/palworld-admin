@@ -1,6 +1,7 @@
 """ This file is the entry point for the application.
 It launches the Flask app and then the UI for the app. """
 
+import logging
 import os
 import platform
 import subprocess
@@ -18,6 +19,7 @@ if platform.system() == "Linux":
     sys.path.append(os.getcwd())
 
 # fmt: off
+from palworld_admin.helper.consolemanagement import hide_console    # pylint: disable=wrong-import-position
 from palworld_admin.helper.dbmigration import apply_migrations      # pylint: disable=wrong-import-position
 from palworld_admin.helper.cli import parse_cli                     # pylint: disable=wrong-import-position
 from palworld_admin.settings import app_settings                    # pylint: disable=wrong-import-position
@@ -39,6 +41,20 @@ def main():
         if ui:
             ui.terminate()
         apply_migrations()
+
+    if args["NoUserInterface"]:
+        # Terminate the UI if the user interface is not required
+        while not app_settings.ready:
+            time.sleep(0.1)
+        ui: subprocess.Popen = app_settings.main_ui
+        if ui:
+            ui.terminate()
+            logging.info(
+                "User interface closed since launched with --no-user-interface."
+            )
+
+    if args["NoConsole"]:
+        hide_console()
 
     # Check if the user is trying to run the app on a non-Windows OS without the -r flag
     try:

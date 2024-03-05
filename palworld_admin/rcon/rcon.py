@@ -267,7 +267,7 @@ def start(host_port, password):
         print(f"Failed to connect to RCON server: {e}", file=sys.stderr)
 
 
-def execute(host_port, password, *commands, base64_encoded: bool = False):
+def execute(host_port: str, password, *commands, base64_encoded: bool = False):
     """
     Execute one or more commands on the RCON server.
 

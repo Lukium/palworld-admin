@@ -1,0 +1,32 @@
+Release Notes
+
+v0.9.0
+
+## New:
+- New Implementation for Server Shutdown mechanic (Should resolve issues for users where their servers take unreasonably long to shutdown)
+- Compilation to Windows using Nuitka instead of Pyinstaller
+- First release using a Full Installer. So now there's only 1 download to be made for windows, which gives you the ability to choose whether to install the UI or not, and the different shortcuts created by the installer determine how the app will be launched.
+Please **PAY CLOSE ATTENTION DURING THE INSTALLER SO YOU BECOME FAMILIAR WITH THE SHORTCUTS**.
+- Introduction of Early Access releases for Project supporters (Priority access will be given to those helping support my time - about 300 hours so far - put towards the app). For clarity, fixes will be released as soon as possible to everyone, new features will be released as early access to supporters for at least 24 hours.
+
+## Fixes:
+- Server Shutdown and Restart should work much better now
+- UI Elements that were not being disabled while the server was running should now be disabled
+
+## **IMPORTANT:**
+- There's no binary release for Linux on this version as I'm working on the compilation process for nuitka on linux. A release may be posted later, but for now, you can still install on linux via `pip install palworld-admin`
+
+## VirtusTotal Reports:
+Antiviruses tend to tag python packaged as .exe as malicious. You can read more about this issue [HERE](https://medium.com/@markhank/how-to-stop-your-python-programs-being-seen-as-malware-bfd7eb407a7) and [HERE](https://github.com/pyinstaller/pyinstaller/issues/5854)
+
+In the interest of full transparency, below are the VirusTotal reports for each file
+
+[Palworld-Admin-Setup.exe](https://www.virustotal.com/gui/file/74c1daf9b24c4c28c2b0269074f6c51c3efa0b1bccde09224df8a3c37726d5b3/detection) 2/69
+[palworld-admin.exe](https://www.virustotal.com/gui/file/746b0a6b903c46c671d216774c05f17a2cf8a28c7451cec288b4da483e7f31df/detection) 2/69
+
+v0.8.9
+## New:
+- Initial Palguard Integration:
+  - Run the addtional palguard commands directly from Palworld Admin
+  - It will use pgbroadcast automatically in place of regular broadcast for sending messages via RCON (so spaces will look like normal spaces)
+  - If you have enables base64 encoding, Palworld ADMIN will automatically recognize it and use it, meaning that all the issues related to non-latin characters in player names are solved

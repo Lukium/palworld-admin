@@ -1,5 +1,8 @@
 """Database migration helper functions."""
 
+import ctypes
+from ctypes import wintypes
+
 import logging
 import os
 import sys
@@ -12,6 +15,27 @@ from flask_migrate import Migrate, upgrade
 
 from palworld_admin.classes.dbmodels import db
 from palworld_admin.settings import app_settings
+
+
+def get_long_path_name(short_path):
+    """
+    Resolves a short path to its long form.
+    """
+    buffer_size = 256
+    buffer = ctypes.create_unicode_buffer(buffer_size)
+    long_path_name = ctypes.windll.kernel32.GetLongPathNameW
+    long_path_name.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPWSTR,
+        wintypes.DWORD,
+    ]
+    long_path_name.restype = wintypes.DWORD
+
+    result_size = long_path_name(short_path, buffer, buffer_size)
+    if result_size == 0:
+        raise ctypes.WinError()
+
+    return buffer[:result_size]
 
 
 def create_app():
@@ -34,6 +58,12 @@ def apply_migrations():
         f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
     )
 
+    if not os.path.exists(
+        os.path.join(app_settings.exe_path, "palworld-admin.db")
+    ):
+        logging.error("Database file not found.")
+        sys.exit(1)
+
     db.init_app(app)
 
     migrations_directory = "migrations"  # Default migrations directory path
@@ -45,6 +75,10 @@ def apply_migrations():
         migrations_directory = pkg_resources.resource_filename(
             "palworld_admin", migrations_directory
         )
+
+    # Check if any shortening of the path took place
+    if "~" in migrations_directory:
+        migrations_directory = get_long_path_name(migrations_directory)
 
     try:
         logging.info("Applying Database Migrations if any...")
