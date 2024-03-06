@@ -50,7 +50,7 @@ Must be at least 6 characters long.""",
 
     args = parser.parse_args()
     if args.management_password:
-        result["ManagementPassword"] = args.ManagementPassword
+        result["ManagementPassword"] = args.management_password
     else:
         result["ManagementPassword"] = ""
     if args.remote:

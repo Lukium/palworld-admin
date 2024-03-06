@@ -1,5 +1,10 @@
 Release Notes
 
+v0.9.1
+
+## Fixes:
+- Error when launching with --management-password flag
+
 v0.9.0
 
 ## New:

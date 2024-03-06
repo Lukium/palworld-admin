@@ -64,12 +64,12 @@ class Settings:
     This class is used to store and manage the server settings."""
 
     def __init__(self):
-        self.dev: bool = True
+        self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = False
-        self.version: str = "0.9.0"
+        self.version: str = "0.9.1"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.9.0"
+        self.supporter_version: str = "0.9.1"
         self.alembic_version: str = "170971d44a48"
         self.exe_path: str = ""
         self.app_os = ""
