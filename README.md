@@ -1,7 +1,11 @@
 <h1 align="center" >Palworld A.D.M.I.N.</h1>
 <p align="center" >(Automated Deployment, Management & Installation Nexus)
 
-[![PyPI version](https://badge.fury.io/py/palworld_admin.svg)](https://badge.fury.io/py/palworld_admin)
+![GitHub Release](https://img.shields.io/github/v/release/Lukium/palworld-admin?label=github&link=https%3A%2F%2Fgithub.com%2FLukium%2Fpalworld-admin%2Freleases%2Flatest) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/lukium/palworld-admin/total)
+ ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/lukium/palworld-admin)
+
+
+![PyPI - Version](https://img.shields.io/pypi/v/palworld-admin) ![PyPI - Format](https://img.shields.io/pypi/format/palworld-admin) ![PyPI - Downloads](https://img.shields.io/pypi/dm/palworld-admin)
 
 
   <image src="https://github.com/Lukium/palworld-admin/assets/99280463/55453c83-f0c4-44e1-b841-b15305243fe3"></image>
