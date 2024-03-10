@@ -1,8 +1,9 @@
 <h1 align="center" >Palworld A.D.M.I.N.</h1>
 <p align="center" >(Automated Deployment, Management & Installation Nexus)
 
-[![PyPI version](https://badge.fury.io/py/palworld_admin.svg)](https://badge.fury.io/py/palworld_admin)
 
+[<image src="https://img.shields.io/github/v/release/Lukium/palworld-admin?label=github"></image>](https://github.com/Lukium/palworld-admin/releases/latest) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/lukium/palworld-admin/total) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/lukium/palworld-admin) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ![PyPI - Version](https://img.shields.io/pypi/v/palworld-admin) ![PyPI - Format](https://img.shields.io/pypi/format/palworld-admin) ![PyPI - Downloads](https://img.shields.io/pypi/dm/palworld-admin)<br>
+[<image src="https://img.shields.io/discord/629066705057873922?label=discord"></image>](https://discord.gg/lukium)
 
   <image src="https://github.com/Lukium/palworld-admin/assets/99280463/55453c83-f0c4-44e1-b841-b15305243fe3"></image>
   <image src="https://github.com/Lukium/palworld-admin/assets/99280463/adf12f14-ae2a-4191-bd04-b86b4e7f8fd5"></image>
@@ -31,7 +32,7 @@ Compatibility: Tested on 23.04+, should work on 22.04+ as long as you have Pytho
 `c:\Palworld-Dedicated-Server` (Windows)<br>
 `$HOME/Palworld-Dedicated-Server` (Linux)<br>
 **Note for Windows Users:**<br>
-The directory **MUST NOT BE IN** `c:\users`, including but not limited to, `My Documents`, `Downloads`, `Desktop` otherwise the SteamCMD installtion will fail.
+The directory **MUST NOT BE IN** a `Known Folder`, including but not limited to, `My Documents`, `Downloads`, `Desktop` otherwise the SteamCMD installtion will fail.
 3. Download the latest version from [Releases](https://github.com/Lukium/palworld-admin/releases/latest) and place it in the directory you created in step 2
 4. Run the application<br>
 **Note for Linux as well as users intending to manage a remote server:**<br>
