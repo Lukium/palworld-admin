@@ -51,6 +51,8 @@ from palworld_admin.servermanager import (
     backup_server,
     update_palworld_settings_ini,
     generate_world_option_save,
+    install_ue4ss,
+    install_palguard,
 )
 
 from palworld_admin.helper.dbmanagement import get_stored_default_settings
@@ -320,16 +322,16 @@ def flask_app():
     @maybe_requires_auth
     def main():
         """Render the home page."""
+        if app_settings.dev_ui:
+            template_to_render = "ui-test.html"
+        else:
+            if app_settings.supporter_build:
+                template_to_render = "ui-supporter.html"
+            else:
+                template_to_render = "ui.html"
+
         return render_template(
-            (
-                "ui-test.html"
-                if app_settings.dev_ui
-                else (
-                    "ui-supporter.html"
-                    if app_settings.supporter_build
-                    else "ui.html"
-                )
-            ),
+            template_to_render,
             management_mode=app_settings.localserver.management_mode,
             version=app_settings.version,
             supporter_build=app_settings.supporter_build,
@@ -555,6 +557,8 @@ def flask_app():
                     "toastMessage": f"Error: {e}",
                 },
             }
+            if "command" in reply["reply"]:
+                reply["command"] = reply["reply"]["command"]
 
         if indicator:
             socketio.emit(
@@ -1110,6 +1114,46 @@ def flask_app():
             return reply
 
         return process_frontend_command(func, indicator="IO")
+
+    @socketio.on("install_ue4ss", namespace="/socket")
+    def install_UE4SS_socket():
+        """Install UE4SS Socket Event."""
+
+        def func():
+            result = install_ue4ss()
+            logging.info("Install UE4SS Result: %s", result)
+
+            message = result["message"]
+            reply = {
+                "command": "Install UE4SS",
+                "success": result["status"] == "success",
+                "consoleMessage": message,
+                "outputMessage": message,
+                "toastMessage": message,
+            }
+
+            return reply
+
+        return process_frontend_command(func, indicator="IO")
+
+    @socketio.on("install_palguard", namespace="/socket")
+    def install_palguard_socket(data):
+        """Install PalGuard Socket Event."""
+
+        def func(data):
+            result = install_palguard(data)
+            logging.info("Install PalGuard Result: %s", result)
+
+            message = result["message"]
+            reply = {
+                "command": "Install PalGuard",
+                "success": result["success"],
+                "outputMessage": message,
+            }
+
+            return reply
+
+        return process_frontend_command(func, data, indicator="IO")
 
     ############# END SERVER MANAGER SOCKET EVENTS #############
 

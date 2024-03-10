@@ -67,9 +67,9 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = False
-        self.version: str = "0.9.1"
+        self.version: str = "0.9.2"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.9.1"
+        self.supporter_version: str = "0.9.2"
         self.alembic_version: str = "170971d44a48"
         self.exe_path: str = ""
         self.app_os = ""
@@ -138,9 +138,13 @@ class Settings:
         else:
             exe_path = os.getcwd()
         self.exe_path = exe_path
-        windows_or_linux = "Windows" if self.app_os == "Windows" else "Linux"
+        windows_or_linux = (
+            "Windows"
+            if self.app_os == "Windows" or self.app_os == "Wine"
+            else "Linux"
+        )
         # Set the launcher path and steamcmd path based on the operating system
-        if windows_or_linux == "Windows":
+        if self.app_os == "Windows":
             # Set the base launcher path based on the operating system
             base_launcher_path = WINDOWS_BASE_LAUNCHER_PATH
 
@@ -179,7 +183,7 @@ class Settings:
 
             self.localserver.executable = WINDOWS_SERVER_EXECUTABLE
 
-        else:
+        elif self.app_os == "Linux":
             home_dir = os.environ["HOME"]
             base_launcher_path = os.path.join(
                 home_dir, LINUX_BASE_LAUNCHER_PATH
@@ -218,8 +222,65 @@ class Settings:
 
             self.localserver.executable = LINUX_SERVER_EXECUTABLE
 
+        elif self.app_os == "Wine":
+            wineprefix = os.environ["WINEPREFIX"]
+            base_launcher_path = os.path.join(
+                wineprefix,
+                "drive_c",
+                WINDOWS_BASE_LAUNCHER_PATH,
+            )
+
+            self.localserver.launcher_path = os.path.join(
+                "wine",
+                base_launcher_path,
+                WINDOWS_LAUNCHER_FILE,
+            )
+
+            self.localserver.steamcmd_path = os.path.join(
+                wineprefix,
+                "drive_c",
+                WINDOWS_STEAMCMD_PATH,
+            )
+
+            self.localserver.default_ini_path = os.path.join(
+                wineprefix,
+                "drive_c",
+                base_launcher_path,
+                DEFAULTPALWORLDSETTINGS_INI_FILE,
+            )
+
+            self.localserver.ini_path = os.path.join(
+                wineprefix,
+                "drive_c",
+                base_launcher_path,
+                PALWORLDSETTINGS_INI_BASE_PATH,
+                f"{windows_or_linux}Server",
+                PALWORLDSETTINGS_INI_FILE,
+            )
+
+            self.localserver.data_path = os.path.join(
+                wineprefix,
+                "drive_c",
+                base_launcher_path,
+                LOCAL_SERVER_DATA_PATH,
+            )
+
+            self.localserver.executable = WINDOWS_SERVER_EXECUTABLE
+
         self.localserver.backup_path = os.path.join(
             exe_path, LOCAL_SERVER_BACKUP_PATH
+        )
+
+        if windows_or_linux == "Linux":
+            bin_dir = "Linux"
+        else:
+            bin_dir = "Win64"
+
+        self.localserver.binaries_path = os.path.join(
+            base_launcher_path,
+            "Pal",
+            "Binaries",
+            bin_dir,
         )
 
         # sav_path
@@ -271,8 +332,20 @@ class Settings:
 
         logging.info("Local server sav path: %s", self.localserver.sav_path)
 
+        logging.info(
+            "Local server binaries path: %s", self.localserver.binaries_path
+        )
+
     def set_app_os(self):
         """Set the operating system of the application based on the current environment."""
+        # Check if the app is running in Wine by checking the WINEPREFIX environment variable
+        env = os.environ
+        if "WINEPREFIX" in env:
+            self.app_os = "Wine"
+            logging.info("Application OS: %s", self.app_os)
+            # Export WINEDEBUG=-all to disable all Wine debugging
+            env["WINEDEBUG"] = "-all"
+            return
         result = platform.system()
         if result == "Windows":
             self.app_os = "Windows"

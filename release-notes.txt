@@ -1,5 +1,12 @@
 Release Notes
 
+v0.9.2
+
+- First release with Docker Support (Self Updating Palworld Admin + Wine - dockerhub image address coming later after final tests) 
+- New Button: Install UE4SS (Automatically installs latest version from Github)
+- New Button: Install Palguard (Automatically installs latest version from Discord releases -has to be manually updated in Palworld Admin since there's no way to do an automatic version check on discord)
+
+
 v0.9.1
 
 ## Fixes:

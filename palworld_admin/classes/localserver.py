@@ -12,6 +12,7 @@ class LocalServer:
         self.management_password = ""
         self.steamcmd_path = ""
         self.launcher_path = ""
+        self.binaries_path = ""
         self.ini_path = ""
         self.sav_path = ""
         self.default_ini_path = ""

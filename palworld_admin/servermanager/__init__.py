@@ -11,10 +11,16 @@ import subprocess
 import time
 import zipfile
 
+import requests
+
 from palworld_admin.converter.convert import convert_json_to_sav
 from palworld_admin.helper.dbmanagement import save_user_settings_to_db
-from palworld_admin.helper.fileprocessing import file_to_lines
-from palworld_admin.helper.networking import get_public_ip, get_local_ip
+from palworld_admin.helper.fileprocessing import file_to_lines, extract_file
+from palworld_admin.helper.networking import (
+    get_public_ip,
+    get_local_ip,
+    download_file,
+)
 
 from palworld_admin.settings import app_settings
 
@@ -233,8 +239,50 @@ def install_steamcmd() -> dict:
         result["status"] = "success"
         result["message"] = "SteamCMD installed successfully"
         return result
+    elif app_settings.app_os == "Wine":
+        # Set the base path to the WINEPREFIX/drive_c folder
+        base_path = os.path.join(os.environ["WINEPREFIX"], "drive_c")
+        steamcmd_path = app_settings.localserver.steamcmd_path
 
-    else:
+        # Try to download steamcmd.zip
+        try:
+            logging.info("Downloading steamcmd.zip")
+            subprocess.run(
+                [
+                    "wget",
+                    "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip",
+                ],
+                check=True,
+                cwd=base_path,
+            )
+            logging.info("Download complete.")
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["message"] = "Error downloading steamcmd.zip"
+            logging.info("Error downloading steamcmd.zip: %s", e)
+            return result
+
+        # Unzip steamcmd.zip to steamcmd folder using zipfile
+        try:
+            with zipfile.ZipFile(
+                os.path.join(base_path, "steamcmd.zip"), "r"
+            ) as zip_ref:
+                zip_ref.extractall(os.path.join(base_path, "steamcmd"))
+            logging.info("Unzip complete.")
+            # Remove steamcmd.zip
+            os.remove(os.path.join(base_path, "steamcmd.zip"))
+        except Exception as e:  # pylint: disable=broad-except
+            result["status"] = "error"
+            result["message"] = "Error unzipping steamcmd.zip"
+            logging.info("Error unzipping steamcmd.zip: %s", e)
+            return result
+
+        # Verify that steamcmd.exe exists
+        if os.path.isfile(steamcmd_path):
+            result["status"] = "success"
+            result["message"] = "SteamCMD installed successfully"
+            return result
+    else:  # Linux
         # Same functionality, but for linux
         try:
             logging.info("Installing SteamCMD")
@@ -327,6 +375,34 @@ def install_palserver():
                     "powershell",
                     "-Command",
                     "cd steamcmd; ./steamcmd.exe +login anonymous +app_update 2394010 validate +quit",  # pylint: disable=line-too-long
+                ],
+                check=True,
+            )
+            result["status"] = "success"
+            result["message"] = "PalServer installed successfully"
+            logging.info("PalServer installed successfully")
+        except subprocess.CalledProcessError as e:
+            result["status"] = "error"
+            result["message"] = "Error installing PalServer"
+            logging.info("Error installing PalServer: %s", e)
+        return result
+
+    elif app_settings.app_os == "Wine":
+        # Install PalServer using wine
+        steamcmd_path = app_settings.localserver.steamcmd_path
+
+        try:
+            logging.info("Installing PalServer")
+            subprocess.run(
+                [
+                    "wine",
+                    steamcmd_path,
+                    "+login",
+                    "anonymous",
+                    "+app_update",
+                    "2394010",
+                    "validate",
+                    "+quit",
                 ],
                 check=True,
             )
@@ -533,6 +609,9 @@ def run_server(launcher_args: dict = None):
 
     # Construct the command with necessary parameters and flags
     cmd = f'"{app_settings.localserver.launcher_path}"{" -publiclobby" if publiclobby else ""}{f" -port={public_port}"}{f" -RCONPort={rcon_port}"}{f" -queryport={query_port}"}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
+    # Append "WINEDEBUG=-all wine" if the OS is Wine
+    if app_settings.app_os == "Wine":
+        cmd = f"WINEDEBUG=-all wine {cmd}"
 
     try:
         if log:
@@ -1396,5 +1475,158 @@ def uninstall_server():
             result["status"] = "error"
             result["message"] = "Error uninstalling Palworld Dedicated Server"
             logging.info("Error uninstalling Palworld Dedicated Server: %s", e)
+
+    return result
+
+
+def install_ue4ss() -> dict:
+    """Install Unreal Engine 4/5 Scripting System."""
+    log = True
+    result = {}
+    ue4ss_url = "https://api.github.com/repos/UE4SS-RE/RE-UE4SS"
+    uer22_latest_url = f"{ue4ss_url}/releases/latest"
+    # Use requests to check github API for latest release for https://github.com/UE4SS-RE/RE-UE4SS
+    try:
+        response = requests.get(
+            uer22_latest_url,
+            timeout=5,
+        )
+        response.raise_for_status()
+        release = response.json()
+
+        result["release"] = json.dumps(release, indent=2)
+
+        version = release["tag_name"]
+        if log:
+            logging.info("Latest release: %s", version)
+        result["version"] = version
+
+        # In release["assets"], find the asset with the name "UE4SS_{version}.zip"
+        asset = next(
+            (
+                asset
+                for asset in release["assets"]
+                if asset["name"] == f"UE4SS_{version}.zip"
+            ),
+            None,
+        )
+
+        if asset is None:
+            raise requests.exceptions.RequestException(
+                f"UE4SS asset matching version {version} not found in the release assets"
+            )
+        result["asset"] = json.dumps(asset, indent=2)
+
+        download_url = asset["browser_download_url"]
+        if download_url is None:
+            raise requests.exceptions.RequestException(
+                "UE4SS download URL not found in the release assets"
+            )
+        if log:
+            logging.info("Download URL: %s", download_url)
+        result["download_url"] = download_url
+
+        # Download the asset using download_file function
+        download_result = download_file(
+            download_url, "UE4SS.zip", app_settings.exe_path
+        )
+        result["download_result"] = download_result
+
+        if not download_result["success"]:
+            result["success"] = False
+            result["message"] = download_result["message"]
+            return result
+
+        # Extract the downloaded zip file to app_settings.localserver.binaries_path
+        extraction_result = extract_file(
+            app_settings.exe_path,
+            "UE4SS.zip",
+            app_settings.localserver.binaries_path,
+        )
+        result["extraction_result"] = extraction_result
+        if not extraction_result["success"]:
+            result["success"] = False
+            result["message"] = extraction_result["message"]
+            return result
+
+        os.remove(os.path.join(app_settings.exe_path, "UE4SS.zip"))
+
+        result = {
+            "status": "success",
+            "message": f'UE4SS {version} installed successfully. For more info, visit [LINK url="{ue4ss_url}"" name="UE4SS Github"]',
+        }
+
+    except requests.exceptions.RequestException as e:
+        result["success"] = False
+        result["message"] = f"Error installing UE4SS: {e}"
+
+    return result
+
+
+def install_palguard(data: dict = None) -> dict:
+    """Install PalGuard."""
+
+    palguard_nexusmods = "https://www.nexusmods.com/palworld/mods/451"
+    palguard_discord = "https://discord.gg/jcvKpkUmXS"
+
+    result = {}
+
+    if data is None:
+        result["success"] = False
+        result["message"] = "No data provided"
+        return result
+
+    if "version" not in data:
+        result["success"] = False
+        result["message"] = "No version provided"
+        return result
+
+    if "Windows" not in data:
+        result["success"] = False
+        result["message"] = "No Windows download URL provided"
+        return result
+
+    if "ProtonWine" not in data:
+        result["success"] = False
+        result["message"] = "No ProtonWine download URL provided"
+        return result
+
+    version = data["version"]
+    windows_url = data["Windows"]
+    protonwine_url = data["ProtonWine"]
+
+    if app_settings.app_os == "Windows":
+        download_url = windows_url
+    elif app_settings.app_os == "Wine":
+        download_url = protonwine_url
+    else:
+        result["success"] = False
+        result["message"] = "Unsupported OS"
+        return result
+
+    download_result = download_file(
+        download_url, f"PalGuard_{version}.zip", app_settings.exe_path
+    )
+    if not download_result["success"]:
+        result["success"] = False
+        result["message"] = download_result["message"]
+        return result
+
+    extraction_result = extract_file(
+        app_settings.exe_path,
+        f"PalGuard_{version}.zip",
+        app_settings.localserver.binaries_path,
+    )
+    if not extraction_result["success"]:
+        result["success"] = False
+        result["message"] = extraction_result["message"]
+        return result
+
+    os.remove(os.path.join(app_settings.exe_path, f"PalGuard_{version}.zip"))
+
+    result["success"] = True
+    result["message"] = (
+        f'PalGuard {version} installed successfully. For more info, visit [LINK url="{palguard_nexusmods}" name="PalGuard NexusMods"] or [LINK url="{palguard_discord}" name="PalGuard Discord"]'
+    )
 
     return result

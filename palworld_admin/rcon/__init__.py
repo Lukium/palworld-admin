@@ -413,7 +413,7 @@ def rcon_shutdown(ip_address, port, password, delay, message) -> dict:
                             return True
                     else:
                         # POSIX (Unix, Linux, etc.)
-                        os.kill(pid, 0)
+                        os.kill(int(pid), 0)
                 except (
                     subprocess.CalledProcessError,
                     ProcessLookupError,
