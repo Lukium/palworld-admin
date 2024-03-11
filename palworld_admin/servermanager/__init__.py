@@ -656,7 +656,9 @@ def run_server(launcher_args: dict = None):
 def get_ram_usage_by_pid(pid: int) -> dict:
     """Get the RAM usage by PID."""
     result = {}
-    logging.info("Getting RAM usage by PID: %s", pid)
+    log = False
+    if log:
+        logging.info("Getting RAM usage by PID: %s", pid)
     if pid:
         ram_cmd = ["ps", "-p", str(pid), "-o", "rss="]
         try:
@@ -672,11 +674,13 @@ def get_ram_usage_by_pid(pid: int) -> dict:
                     ram_usage = "0"
                 result["status"] = "success"
                 result["value"] = str(round(int(ram_usage) / 1048576, 2))
-                logging.info("RAM usage: %s", result)
+                if log:
+                    logging.info("RAM usage: %s", result)
             else:
                 result["status"] = "success"
                 result["value"] = "0"
-                logging.info("RAM usage: %s", result)
+                if log:
+                    logging.info("RAM usage: %s", result)
         except subprocess.CalledProcessError as e:
             result["status"] = "error"
             result["value"] = "Error getting RAM usage"
@@ -687,7 +691,9 @@ def get_ram_usage_by_pid(pid: int) -> dict:
 def get_cpu_time_by_pid(pid: int) -> dict:
     """Get the CPU time by PID."""
     result = {}
-    logging.info("Getting CPU time by PID: %s", pid)
+    log = False
+    if log:
+        logging.info("Getting CPU time by PID: %s", pid)
     if pid:
         try:
             with open(f"/proc/{pid}/stat", "r", encoding="utf-8") as stat_file:
@@ -698,19 +704,21 @@ def get_cpu_time_by_pid(pid: int) -> dict:
                 # fmt: off
                 jiffies_per_second = os.sysconf("SC_CLK_TCK")  # pylint: disable=no-member disable=line-too-long # sysconf is actually a function of os, but pylint doesn't know that
                 # fmt: on
-                logging.info("jiffies_per_second: %s", jiffies_per_second)
+                if log:
+                    logging.info("jiffies_per_second: %s", jiffies_per_second)
                 cpu_time = (utime + stime) / jiffies_per_second
 
             # Calculate the CPU usage in percentage using the number of cores,
             # time delta since last check and CPU time delta
             cores = app_settings.localserver.cpu_cores
-            logging.info(
-                "last_cpu_check: %s",
-                app_settings.localserver.last_cpu_check,
-            )
-            logging.info(
-                "last_cpu_time: %s", app_settings.localserver.last_cpu_time
-            )
+            if log:
+                logging.info(
+                    "last_cpu_check: %s",
+                    app_settings.localserver.last_cpu_check,
+                )
+                logging.info(
+                    "last_cpu_time: %s", app_settings.localserver.last_cpu_time
+                )
             if (
                 app_settings.localserver.last_cpu_check is not None
                 and app_settings.localserver.last_cpu_time is not None
@@ -845,6 +853,22 @@ def check_server_running() -> dict:
             return result
     else:
         pid = app_settings.localserver.pid
+
+        if app_settings.localserver.server_process:
+            # Check if the process is still running
+            if app_settings.localserver.server_process.poll() is not None:
+                # Process has terminated
+                app_settings.localserver.server_process.wait()
+                result["status"] = "success"
+                result["value"] = False
+                result["cpu_time"] = "0"
+                result["cpu_usage"] = "0"
+                result["ram_usage"] = "0"
+                app_settings.localserver.running = False
+                app_settings.localserver.pid = None
+                app_settings.localserver.last_cpu_check = None
+                app_settings.localserver.last_cpu_time = None
+                return result
         if pid:
             cpu_result = get_cpu_time_by_pid(pid)
             if cpu_result["status"] == "error":
@@ -856,13 +880,15 @@ def check_server_running() -> dict:
                 logging.info("Process appears not to be running")
                 return result
             else:
-                logging.info("CPU Usage: %s", cpu_result)
+                if log:
+                    logging.info("CPU Usage: %s", cpu_result)
                 result["cpu_time"] = cpu_result["cpu_time"]
                 result["cpu_usage"] = cpu_result["cpu_usage"]
 
             ram_result = get_ram_usage_by_pid(pid)
             if ram_result["status"] == "success":
-                logging.info("RAM Usage: %s", ram_result)
+                if log:
+                    logging.info("RAM Usage: %s", ram_result)
                 result["ram_usage"] = ram_result["value"]
             result["status"] = "success"
             result["value"] = True
@@ -1485,6 +1511,7 @@ def install_ue4ss() -> dict:
     result = {}
     ue4ss_url = "https://api.github.com/repos/UE4SS-RE/RE-UE4SS"
     uer22_latest_url = f"{ue4ss_url}/releases/latest"
+    ue4ss_friendly_url = "https://github.com/UE4SS-RE/RE-UE4SS"
     # Use requests to check github API for latest release for https://github.com/UE4SS-RE/RE-UE4SS
     try:
         response = requests.get(
@@ -1553,7 +1580,7 @@ def install_ue4ss() -> dict:
 
         result = {
             "status": "success",
-            "message": f'UE4SS {version} installed successfully. For more info, visit [LINK url="{ue4ss_url}"" name="UE4SS Github"]',
+            "message": f'UE4SS {version} installed successfully. For more info, visit [LINK url="{ue4ss_friendly_url}"" name="UE4SS Github"]',
         }
 
     except requests.exceptions.RequestException as e:

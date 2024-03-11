@@ -1127,9 +1127,7 @@ def flask_app():
             reply = {
                 "command": "Install UE4SS",
                 "success": result["status"] == "success",
-                "consoleMessage": message,
                 "outputMessage": message,
-                "toastMessage": message,
             }
 
             return reply
@@ -1204,6 +1202,8 @@ def flask_app():
                     == "Connection Error: [winerror 10061] no connection could be made because the target machine actively refused it"  # pylint: disable=line-too-long
                     or result["message"]
                     == "Connection Error: [errno 111] connection refused"  # Linux
+                    or result["message"]
+                    == "Connection Error: [errno 104] connection reset by peer"  # Wine
                 ):
                     if error_count > 2:
                         app_settings.localserver.rcon_monitoring_connection_error_count = (

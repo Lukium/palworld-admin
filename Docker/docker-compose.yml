@@ -1,0 +1,26 @@
+version: '3.8'
+services:  
+  app:
+    container_name: ${CONTAINER_NAME}
+    image: 'lukium/palworld-admin-wine:${CONTAINER_VERSION}'
+    restart: unless-stopped
+    environment:
+      MANAGEMENT_PASSWORD: ${MANAGEMENT_PASSWORD}
+    ports:
+      - '${ADMIN_PORT}:8210'
+      - '${GAME_PORT}:8211/udp'
+      - '${RCON_PORT}:25575'
+      - '${QUERY_PORT}:27015'
+      - '${QUERY_PORT}:27015/udp'
+    volumes:
+      - ./palworld-admin:/home/lukium/palworld-admin/
+      - ./PalServer:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/
+
+# .env
+# CONTAINER_NAME=Palworld Server
+# CONTAINER_VERSION=latest
+# MANAGEMENT_PASSWORD=changeme
+# ADMIN_PORT=8210
+# GAME_PORT=8211
+# RCON_PORT=25575
+# QUERY_PORT=27015
