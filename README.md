@@ -51,6 +51,46 @@ This will make it so that in order to access the server a `[management-password]
 9. To use RCON Features, enter the Server IP/Port/RCON Password on the top of the main window and click on ![image](https://github.com/Lukium/palworld-admin/assets/99280463/a54d69dc-17fe-4542-9ee6-c2c86fcb898a).<br>
 **Note:** when managing the server locally (either on same machine or same LAN) use the Local IP displayed on the top of the settings window. When managing the server remotely (over the internet) enter the Public IP, and ensure that port forwarding has been done on port 8210.
 
+## Running Docker Image:
+### IMPORTANT:
+If you mount the directories as explained below, they must be owned by UID:GID 1001:1001 on the host, otherwise you will have permission errors.
+If your distro doesn't already have a 1001:1001 user (you can check by running `sudo cat /etc/passwd`), then you can create the user and set the user perms by running the following commands:
+```bash
+sudo useradd -u 1001 -g 1001 [username]
+sudo chown [username]:[username] /path/to/dir
+```
+
+Simply run (if using Docker, or use any alternative you like such as Docker Compose or Kubernetes:
+```bash
+docker run \
+	-e MANAGEMENT_PASSWORD="[management-password]" \
+	-p [desired palworld-admin port]:8210/tcp \
+	-p [desired game port]:8211/udp \
+	-p [desired RCON port]:25575/tcp \
+	-p [desired RCON port]:25575/udp \
+	-p [desired query port]:27015/tcp \
+	-p [desired query port]:27015/udp \
+	-v [location on host to mount palworld-admin directory]:/home/lukium/palworld-admin/ \
+	-v [location on host to mount Palworld Dedicated Server directory]:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/ \
+	--name [desired container name] \
+	lukium/palworld-admin-wine:0.1.0 # Edit this line if the image gets upgraded
+```
+For example:
+```bash
+docker run \
+	-e MANAGEMENT_PASSWORD="test123" \
+	-p 8210:8210/tcp \
+	-p 8211:8211/udp \
+	-p 25575:25575/tcp \
+	-p 25575:25575/udp \
+	-p 27015:27015/tcp \
+	-p 27015:27015/udp \
+	-v $HOME/palworld-admin/app/:/home/lukium/palworld-admin/ \
+	-v $HOME/palworld-admin/server/:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/ \
+	--name palworld-admin-wine \
+	lukium/palworld-admin-wine:0.1.0
+```
+
 ## How to run directly from the code:
 - Install python, at least 3.11
 - Install poetry `pip install poetry` make sure you add it to your PATH
