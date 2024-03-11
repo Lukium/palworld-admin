@@ -73,7 +73,7 @@ docker run \
 	-v [location on host to mount palworld-admin directory]:/home/lukium/palworld-admin/ \
 	-v [location on host to mount Palworld Dedicated Server directory]:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/ \
 	--name [desired container name] \
-	lukium/palworld-admin-wine:0.1.0 # Edit this line if the image gets upgraded
+	lukium/palworld-admin-wine:latest
 ```
 Docker Compose:
 ```yaml
@@ -100,7 +100,7 @@ services:
 # .env
 
 CONTAINER_NAME=Palworld Server
-CONTAINER_VERSION=0.1.0
+CONTAINER_VERSION=latest
 MANAGEMENT_PASSWORD=changeme
 ADMIN_PORT=8210
 GAME_PORT=8211
@@ -120,7 +120,7 @@ docker run \
 	-v $HOME/palworld-admin/app/:/home/lukium/palworld-admin/ \
 	-v $HOME/palworld-admin/server/:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/ \
 	--name palworld-admin-wine \
-	lukium/palworld-admin-wine:0.1.0
+	lukium/palworld-admin-wine:latest
 ```
 
 ## How to run directly from the code:
