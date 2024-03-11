@@ -75,6 +75,27 @@ docker run \
 	--name [desired container name] \
 	lukium/palworld-admin-wine:0.1.0 # Edit this line if the image gets upgraded
 ```
+Docker Compose:
+```yaml
+version: '3.8'
+
+services:
+  palworld-admin:
+    image: lukium/palworld-admin-wine:0.1.0
+    container_name: [desired container name]
+    environment:
+      - MANAGEMENT_PASSWORD=[management-password]
+    ports:
+      - "[desired palworld-admin port]:8210/tcp"
+      - "[desired game port]:8211/udp"
+      - "[desired RCON port]:25575/tcp"
+      - "[desired RCON port]:25575/udp"
+      - "[desired query port]:27015/tcp"
+      - "[desired query port]:27015/udp"
+    volumes:
+      - "[location on host to mount palworld-admin directory]:/home/lukium/palworld-admin/"
+      - "[location on host to mount Palworld Dedicated Server directory]:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/"
+```
 For example:
 ```bash
 docker run \
