@@ -14,12 +14,12 @@ LABEL   org.opencontainers.image.title="Palworld ADMIN" \
 ARG DEBIAN_FRONTEND=noninteractive    
 
 # Install sudo, make lukium a passwordless sudoer and create its relevant directories
-RUN		apt-get update && \
-		apt-get install -y sudo && \
-		# Create a non-root user 'lukium'
-		useradd -m lukium && \
+RUN	apt-get update && \
+	apt-get install -y sudo && \
+	# Create a non-root user 'lukium'
+	useradd -m lukium && \
         # Make lukium a passwordless sudoer, this is so that the container can auto-update Wine later
-		echo 'lukium ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/lukium && \
+	echo 'lukium ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/lukium && \
         # Ensure the sudoers file has correct permissions
     	chmod 0440 /etc/sudoers.d/lukium && \
         # Give lukium ownership of the relevant directories
@@ -47,9 +47,9 @@ RUN     sudo dpkg --add-architecture i386 && \
         sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/mantic/winehq-mantic.sources && \
         sudo apt-get update && \
         sudo apt-get install --install-recommends winehq-devel winetricks -y && \        
-		# Now as 'lukium', use xvfb-run and winetricks under this user
-		set -xe && \
-		export WINEDEBUG=-all && \
+	# Now as 'lukium', use xvfb-run and winetricks under this user
+	set -xe && \
+	export WINEDEBUG=-all && \
         WINEDLLOVERRIDES="mscoree,mshtml=" xvfb-run wine wineboot && \
         xvfb-run wineserver -w && \
         xvfb-run winetricks -q corefonts vcrun2022 && \        
