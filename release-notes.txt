@@ -1,5 +1,14 @@
 Release Notes
 
+v0.9.3
+
+## New:
+- RCON Command Dropdown: Automatically detects Palguard and displays all commands available
+- RCON Command Field: Automatically displays Palguard command <dl class="row">
+
+## Fixes:
+- RCON not using pgbroadcast in place of broadcast when Palguard is installed has been fixed
+
 v0.9.2
 
 ## New:

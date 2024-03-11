@@ -649,6 +649,11 @@ def flask_app():
                 "serverVersion": message["server_version"],
             }
 
+            if "palguard_commands" in message:
+                reply["vars"]["palguardCommands"] = message[
+                    "palguard_commands"
+                ]
+
             logging.info("Reply: %s", reply)
             return reply
 

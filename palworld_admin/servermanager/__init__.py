@@ -81,6 +81,28 @@ def check_palworld_install() -> dict:
     return result
 
 
+def check_palguard_install() -> dict:
+    """Check if PalGuard is installed."""
+    result = {}
+    # Check if PalGuard is installed
+    palguard_path = os.path.join(
+        app_settings.localserver.binaries_path, "palguard.dll"
+    )
+    try:
+        if os.path.isfile(palguard_path):
+            result["status"] = "success"
+            result["value"] = True
+            app_settings.localserver.palguard_installed = True
+        else:
+            result["status"] = "success"
+            result["value"] = False
+            app_settings.localserver.palguard_installed = False
+    except Exception as e:  # pylint: disable=broad-except
+        result["status"] = "error"
+        result["value"] = f"Error checking PalGuard installation: {e}"
+    return result
+
+
 def check_world_sav_exists() -> dict:
     """Check if the world.sav file exists."""
     result = {}

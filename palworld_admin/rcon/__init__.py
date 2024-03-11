@@ -47,27 +47,22 @@ def execute_rcon(ip_address, port, password, command, queue) -> None:
         queue.put(result.strip())
 
 
-def rcon_broadcast(
-    ip_address, port, password, message, broadcast_or_command: bool
-) -> dict:
+def rcon_broadcast(ip_address, port, password, message, command: str) -> dict:
     """Broadcast the specified message to the server."""
     result_queue = Queue()
-    broadcast_command = (
-        "pgbroadcast"
-        if app_settings.localserver.palguard_installed
-        else "broadcast"
-    )
+
+    if command == "broadcast" and app_settings.localserver.palguard_installed:
+        rcon_command = "pgbroadcast"
+    else:
+        rcon_command = command
+
     command_thread = threading.Thread(
         target=execute_rcon,
         args=(
             ip_address,
             port,
             password,
-            (
-                f"{broadcast_command} {message}"
-                if broadcast_or_command
-                else f"{message}"
-            ),
+            f"{rcon_command} {message}",
             result_queue,
         ),
     )
@@ -80,23 +75,24 @@ def rcon_broadcast(
     reply = {}
     if "Failed to execute command" in result:
         reply["status"] = "error"
-        reply["message"] = "Broadcast Error"
+        reply["message"] = f"Error: {result}"
     elif "Unknown command" in result:
         reply["status"] = "error"
         reply["message"] = "Unknown command"
     else:
         reply["status"] = "success"
-        reply["message"] = (
-            f'Broadcasted "{message}" successfully'
-            if broadcast_or_command
-            else f"{result}"
+        message = (
+            f'Command "{command}{" " + message if message else ""}" '
+            + f"executed successfully. Result:\n{result}"
         )
-
+        reply["message"] = message
     return reply
 
 
 def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
     """Connect to the RCON server and retrieve the server name and version."""
+    app_settings.localserver.base64_encoded = False
+    reply = {}
     result_queue = Queue()
 
     # Non-Base64 Connection Attempt
@@ -129,7 +125,40 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
     else:
         app_settings.localserver.base64_encoded = False
 
-    reply = {}
+    # Check for palguard commands
+    palguard_commands_queue = Queue()
+    palguard_commands_list = []
+    final_palguard_commands_list = []
+    palguard_commands_thread = threading.Thread(
+        target=execute_rcon,
+        args=(
+            ip_address,
+            port,
+            password,
+            "getrconcmds",
+            palguard_commands_queue,
+        ),
+    )
+    palguard_commands_thread.start()
+    palguard_commands_thread.join()  # Wait for the thread to complete
+    palguard_commands_result: str = palguard_commands_queue.get()
+    if "Unknown command" not in palguard_commands_result:
+        palguard_commands_list = palguard_commands_result.split(";")
+        palguard_commands_list.sort()
+        # Remove any empty strings from the list
+        palguard_commands_list = [
+            command for command in palguard_commands_list if command != ""
+        ]
+        logging.info("Palguard Commands: %s", palguard_commands_list)
+        for command in palguard_commands_list:
+            logging.info("Command Type: %s", type(command))
+            command_name = command.split(":")[0]
+            command_args = command.split(":")[1]
+            command_dict = {"name": command_name, "args": command_args}
+            final_palguard_commands_list.append(command_dict)
+        logging.info("Palguard Commands: %s", final_palguard_commands_list)
+        reply["palguard_commands"] = final_palguard_commands_list
+
     if "Failed to execute command" in result:
         reply["status"] = "error"
         reply["message"] = (
@@ -155,6 +184,8 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
         reply["message"] = "RCON Connected!"
         reply["server_name"] = result.split("]")[1].strip()
         reply["server_version"] = result.split("[")[1].split("]")[0].strip()
+        reply["base64_encoded"] = app_settings.localserver.base64_encoded
+
         if not skip_save:
             save_user_settings_to_db(
                 {
