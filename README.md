@@ -82,7 +82,7 @@ Docker Compose:
 version: '3.8'
 services:
   app:
-    container_name:${CONTAINER_NAME}
+    container_name: ${CONTAINER_NAME}
     image: 'lukium/palworld-admin-wine:${CONTAINER_VERSION}'
     restart: unless-stopped
     environment:
