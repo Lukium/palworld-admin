@@ -35,6 +35,8 @@ class LauncherSettings(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     launch_rcon = db.Column(db.Boolean, default=True)
+    steam_auth = db.Column(db.Boolean, default=False)
+    enforce_steam_auth_ip = db.Column(db.Boolean, default=False)
     useperfthreads = db.Column(db.Boolean, default=True)
     NoAsyncLoadingThread = db.Column(db.Boolean, default=True)
     UseMultithreadForDS = db.Column(db.Boolean, default=True)
@@ -68,3 +70,22 @@ class Connection(db.Model):
     host = db.Column(db.String(255))
     port = db.Column(db.Integer)
     password = db.Column(db.String(255))
+
+
+class Players(db.Model):
+    """Players model for the application."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    steam_id = db.Column(db.String(255), unique=True)
+    steam_authenticated = db.Column(db.Boolean, default=False)
+    steam_auth_ip = db.Column(db.String(255))
+    online = db.Column(db.Boolean, default=False)
+    name = db.Column(db.String(255))
+    player_id = db.Column(db.String(255))
+    save_id = db.Column(db.String(255))
+    first_login = db.Column(db.DateTime)
+    last_seen = db.Column(db.DateTime)
+    whitelisted = db.Column(db.Boolean, default=False)
+    whitelisted_ip = db.Column(db.String(255))
+    banned = db.Column(db.Boolean, default=False)
+    is_admin = db.Column(db.Boolean, default=False)

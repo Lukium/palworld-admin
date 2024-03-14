@@ -1,10 +1,22 @@
 Release Notes
 
+v0.9.4
+
+## New:
+- Steam SSO Authentication (Prevents SteamIDs that have not been authenticated directly with Steam from connecting to the server)
+- Steam SSO + IP Authentication (Requires Palguard) - Requires that both the SteamID be authenticated, and the player IP match the IP that was used for Authentication
+
+To use Auth, tell your players to visit http://[ipofyourserver]:8210/steam-auth (You are welcome and encouraged to use an SSL for your Palworld Admin Webserver, but it's up to you how you go about it)
+
+## Fixed:
+- Player Joins and Leaves being announced again on Palwolr Admin UI
+
 v0.9.3
 
 ## New:
 - RCON Command Dropdown: Automatically detects Palguard and displays all commands available
-- RCON Command Field: Automatically displays Palguard command <dl class="row">
+- RCON Command Field: Automatically displays Palguard command descriptions
+- You can also click on Player Names, UIDs and SteamIDs to automatically paste the respective values into the RCON command field
 
 ## Fixes:
 - RCON not using pgbroadcast in place of broadcast when Palguard is installed has been fixed

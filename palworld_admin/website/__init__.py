@@ -25,11 +25,15 @@ from flask import (
     send_from_directory,
     redirect,
     url_for,
+    make_response,
     flash,
     render_template,
+    render_template_string,
     session,
     request,
 )
+
+from flask_openid import OpenID
 
 from palworld_admin.rcon import (
     rcon_connect,
@@ -55,7 +59,11 @@ from palworld_admin.servermanager import (
     install_palguard,
 )
 
-from palworld_admin.helper.dbmanagement import get_stored_default_settings
+from palworld_admin.helper.dbmanagement import (
+    get_stored_default_settings,
+    commit_players_to_db,
+    get_players_from_db,
+)
 from palworld_admin.settings import app_settings
 from palworld_admin.converter.convert import convert_json_to_sav
 from palworld_admin.classes import (
@@ -65,6 +73,7 @@ from palworld_admin.classes import (
     RconSettings,
     Connection,
     Settings,
+    Players,
 )
 
 DEFAULT_VALUES: dict = app_settings.palworldsettings_defaults.default_values
@@ -211,6 +220,7 @@ def flask_app():
     with app.app_context():
         db.create_all()
         initialize_database_defaults()
+        app_settings.localserver.all_players = get_players_from_db()
 
     @app.route("/restore-server-data", methods=["POST"])
     @maybe_requires_auth
@@ -496,6 +506,76 @@ def flask_app():
             mimetype="application/octet-stream",
             as_attachment=True,
             download_name="WorldOption.sav",
+        )
+
+    tmp_dir = os.path.join(app_settings.exe_path, "tmp")
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
+
+    oid = OpenID(app, tmp_dir)
+    openid_logger = logging.getLogger("openid")
+    openid_logger.setLevel(logging.WARNING)
+
+    @app.route("/steam-auth")
+    @oid.loginhandler
+    def steam_auth():
+        # Get the IP address of the user connecting
+        client_ip = request.remote_addr
+        session["client_ip"] = client_ip
+        return oid.try_login(
+            app_settings.steam_openid_url, ask_for=["nickname"]
+        )
+
+    @app.route("/steam-auth-complete")
+    @oid.after_login
+    def steam_auth_complete(resp):
+        # Create a dict from the response
+        steam_id = resp.identity_url.split("/")[-1]
+        session["steam_id"] = steam_id
+        # Check if the steamID is among the all_players list
+        if steam_id not in [
+            player["steam_id"]
+            for player in app_settings.localserver.all_players
+        ]:
+            new_player = {
+                "steam_id": steam_id,
+                "steam_authenticated": True,
+                "steam_auth_ip": session["client_ip"],
+                "online": False,
+                "name": None,
+                "player_id": None,
+                "save_id": None,
+                "first_login": None,
+                "last_seen": None,
+                "whitelisted": False,
+                "whitelisted_ip": "",
+                "banned": False,
+                "is_admin": False,
+            }
+            # Add the player to the all_players list
+            app_settings.localserver.all_players.append(new_player)
+        else:
+            # Update the player's steam_authenticated status and IP
+            for player in app_settings.localserver.all_players:
+                if player["steam_id"] == steam_id:
+                    player["steam_authenticated"] = True
+                    player["steam_auth_ip"] = session["client_ip"]
+        logging.info(
+            "Player %s authenticated with SteamAuth using %s",
+            steam_id,
+            session["client_ip"],
+        )
+        # Commit the player to the database
+        commit_players_to_db(app_settings.localserver.all_players)
+        message = f"Steam ID: {steam_id} authenticated with with IP {session['client_ip']}"
+        send_to_frontend(
+            "update_players",
+            {"success": True, "reply": {"player_auth": message}},
+        )
+        return render_template_string(
+            "Login successful. Steam ID: {{steam_id}} authenticated with with IP {{IP}}",
+            steam_id=steam_id,
+            IP=session["client_ip"],
         )
 
     socketio = SocketIO(app, async_mode="eventlet")
@@ -1183,13 +1263,6 @@ def flask_app():
                 app_settings.localserver.rcon_monitoring_connection_error_count = (
                     0
                 )
-                if len(result["players"]) > 0:
-                    # For each player, convert playerUID to HEXADECIMAL like F9B309D1
-                    for player in result["players"]:
-
-                        player["saveid"] = hex(int(player["playeruid"]))[
-                            2:
-                        ].upper()
 
                 reply["success"] = True
                 reply["vars"] = {
@@ -1197,6 +1270,14 @@ def flask_app():
                     "playerCount": result["player_count"],
                 }
                 reply["players"] = result["players"]
+                if "players_left" in result:
+                    reply["players_left"] = result["players_left"]
+                if "players_joined" in result:
+                    reply["players_joined"] = result["players_joined"]
+                if "auto_kicked_players" in result:
+                    reply["auto_kicked_players"] = result[
+                        "auto_kicked_players"
+                    ]
             else:
                 logging.info("RCON Monitor Error: %s", result["message"])
                 app_settings.localserver.rcon_monitoring_connection_error_count += (
@@ -1258,6 +1339,9 @@ def flask_app():
             server_monitor_interval = (
                 app_settings.localserver.server_monitoring_interval
             )
+            player_to_db_interval = (
+                app_settings.localserver.player_commit_to_db_interval
+            )
 
             # Auto Backups
             if app_settings.localserver.run_auto_backup:
@@ -1303,6 +1387,7 @@ def flask_app():
                 start_indicator("RCON")
                 rcon_indicator = True
 
+            # Check server running every server_monitor_interval seconds
             if up_indicator:
                 up_indicator = False
                 check_server_running_socket()
@@ -1313,6 +1398,14 @@ def flask_app():
             ):
                 start_indicator("UP")
                 up_indicator = True
+
+            # Commit players to the database every player_to_db_interval seconds
+            if timer % player_to_db_interval == 0:
+                if len(app_settings.localserver.all_players) > 0:
+                    with app.app_context():
+                        commit_players_to_db(
+                            app_settings.localserver.all_players
+                        )
 
             timer += 0.5
             # logging.info("Server Monitor Timer: %s", timer)

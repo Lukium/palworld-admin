@@ -26,6 +26,12 @@ palworld_admin/website/templates/
 # Built Electron UI (files too large for github)
 ui/palworld-admin-ui-win32-x64/
 
+# Migration Backups
+palworld_admin/migrations-backup
+
+# openID temp
+/tmp
+
 # SteamCMD
 steamcmd/
 

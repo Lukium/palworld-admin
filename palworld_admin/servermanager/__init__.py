@@ -628,6 +628,11 @@ def run_server(launcher_args: dict = None):
         "auto_restart_on_unexpected_shutdown"
     ]
     ram_restart_trigger = launcher_args["ram_restart_trigger"]
+    steam_auth = launcher_args["steam_auth"]
+    enforce_steam_auth_ip = launcher_args["enforce_steam_auth_ip"]
+
+    app_settings.localserver.steam_auth = steam_auth
+    app_settings.localserver.enforce_steam_auth_ip = enforce_steam_auth_ip
 
     # Construct the command with necessary parameters and flags
     cmd = f'"{app_settings.localserver.launcher_path}"{" -publiclobby" if publiclobby else ""}{f" -port={public_port}"}{f" -RCONPort={rcon_port}"}{f" -queryport={query_port}"}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
@@ -667,6 +672,10 @@ def run_server(launcher_args: dict = None):
         else:
             result["status"] = "error"
             result["message"] = "Error starting server"
+        logging.info(
+            "Palguard installed: %s",
+            app_settings.localserver.palguard_installed,
+        )
     except Exception as e:  # pylint: disable=broad-except
         if log:
             logging.error("Error starting server: %s", e)
@@ -1167,6 +1176,8 @@ def first_run():
         "auto_restart_triggers": True,
         "auto_restart_on_unexpected_shutdown": True,
         "ram_restart_trigger": "0",
+        "steam_auth": False,
+        "enforce_steam_auth_ip": False,
     }
     run_server(launcher_args)
     time.sleep(3)

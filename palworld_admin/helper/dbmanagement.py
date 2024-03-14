@@ -4,7 +4,12 @@ import logging
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from palworld_admin.classes.dbmodels import db, LauncherSettings, Connection
+from palworld_admin.classes.dbmodels import (
+    db,
+    LauncherSettings,
+    Connection,
+    Players,
+)
 
 
 def get_stored_default_settings(model_name: str) -> dict:
@@ -143,3 +148,56 @@ def save_user_settings_to_db(user_settings) -> dict:
     db.session.close()
 
     return result
+
+
+def commit_players_to_db(players: list) -> None:
+    """Commit a list of players to the database."""
+    for player in players:
+        if player["steam_id"]:
+            existing_player: Players = Players.query.filter_by(
+                steam_id=player["steam_id"]
+            ).first()
+            if existing_player:
+                existing_player.steam_authenticated = player[
+                    "steam_authenticated"
+                ]
+                existing_player.steam_auth_ip = (
+                    player["steam_auth_ip"]
+                    if "steam_auth_ip" in player
+                    else None
+                )
+                existing_player.online = player["online"]
+                existing_player.name = player["name"]
+                existing_player.player_id = player["player_id"]
+                existing_player.save_id = player["save_id"]
+                existing_player.last_seen = player["last_seen"]
+            else:
+                new_player = Players(**player)
+                db.session.add(new_player)
+    db.session.commit()
+    logging.info("Committed %s players to the database.", len(players))
+    db.session.close()
+    return None
+
+
+def get_players_from_db() -> list:
+    """Return a list of all players from the database."""
+    players = Players.query.all()
+    player_list = []
+    for player in players:
+        player_info = {
+            "steam_id": player.steam_id,
+            "steam_authenticated": player.steam_authenticated,
+            "online": player.online,
+            "name": player.name,
+            "player_id": player.player_id,
+            "save_id": player.save_id,
+            "first_login": player.first_login,
+            "last_seen": player.last_seen,
+            "whitelisted": player.whitelisted,
+            "whitelisted_ip": player.whitelisted_ip,
+            "banned": player.banned,
+            "is_admin": player.is_admin,
+        }
+        player_list.append(player_info)
+    return player_list

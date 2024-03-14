@@ -21,6 +21,9 @@ class LocalServer:
         self.socket = None
         self.palguard_installed: bool = False
         self.server_process: subprocess.Popen = None
+        self.online_players: list = []
+        self.last_online_players: list = []
+        self.all_players: list = []
 
         # RCON Variables
         self.base64_encoded: bool = False
@@ -43,6 +46,7 @@ class LocalServer:
         self.restarting: bool = False
         self.running_check_count: int = 0
         self.server_monitoring_interval = 5
+        self.player_commit_to_db_interval = 60
 
         # Backup Variables
         self.backup_path = ""
@@ -67,3 +71,7 @@ class LocalServer:
         self.auto_restart_monitoring: bool = False
         self.auto_restart_ram_threshold: float = 0
         self.auto_restart_on_unexpected_shutdown: bool = False
+
+        # Steam Authentification Variables
+        self.steam_auth: bool = False
+        self.enforce_steam_auth_ip: bool = False

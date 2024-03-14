@@ -7,6 +7,8 @@ import subprocess
 import threading
 import time
 
+from datetime import datetime
+
 from palworld_admin.helper.dbmanagement import save_user_settings_to_db
 from palworld_admin.rcon.rcon import execute, resolve_address
 from palworld_admin.settings import app_settings
@@ -149,14 +151,11 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
         palguard_commands_list = [
             command for command in palguard_commands_list if command != ""
         ]
-        logging.info("Palguard Commands: %s", palguard_commands_list)
         for command in palguard_commands_list:
-            logging.info("Command Type: %s", type(command))
             command_name = command.split(":")[0]
             command_args = command.split(":")[1]
             command_dict = {"name": command_name, "args": command_args}
             final_palguard_commands_list.append(command_dict)
-        logging.info("Palguard Commands: %s", final_palguard_commands_list)
         reply["palguard_commands"] = final_palguard_commands_list
 
     if "Failed to execute command" in result:
@@ -203,6 +202,10 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
 def rcon_fetch_players(ip_address, port, password) -> dict:
     """Fetch the list of players currently connected to the server."""
     result_queue = Queue()
+    app_settings.localserver.last_online_players = (
+        app_settings.localserver.online_players
+    )
+    app_settings.localserver.last_online_players.sort()
     command_thread = threading.Thread(
         target=execute_rcon,
         args=(ip_address, port, password, "ShowPlayers", result_queue),
@@ -230,6 +233,9 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
         players = result.split("\n")[1:]
         # Each row is a player, with PlayerName, PlayerUID, and SteamID separated by commas
         player_list = []
+        players_joined = []
+        players_left = []
+        auto_kicked_players = []
         for player in players:
             player_data = player.split(",")
             player_list.append(
@@ -237,10 +243,183 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
                     "name": player_data[0],
                     "playeruid": player_data[1],
                     "steamid": player_data[2],
+                    "saveid": hex(int(player_data[1]))[2:].upper(),
+                    "online": True,
                 }
             )
+
+        # Create a copy of player_list
+        second_player_list = player_list.copy()
+        # Drop from second player list any players whose playeruid is all 0s
+        for player in player_list:
+            if player["playeruid"] == "00000000":
+                second_player_list.remove(player)
+
+        for player in player_list:
+            if app_settings.localserver.steam_auth:
+                # Get player from all_players list using steamid
+                player_exists = [
+                    all_player
+                    for all_player in app_settings.localserver.all_players
+                    if all_player["steam_id"] == player["steamid"]
+                ]
+                if player_exists:
+                    # Check if the player is steam_authenticated
+                    is_authenticated = player_exists[0]["steam_authenticated"]
+                    if is_authenticated:
+                        if app_settings.localserver.enforce_steam_auth_ip:
+                            # Check if Palguard is installed so getip can be used
+                            if not app_settings.localserver.palguard_installed:
+                                player["kick_reason"] = (
+                                    "SteamAuth IP Unenforceable - Palguard Not Installed"
+                                )
+                                auto_kicked_players.append(player)
+                                logging.info(
+                                    "SteamAuth IP Unenforceable - Palguard Not Installed"
+                                )
+                            else:
+                                # Get player's IP using RCON
+                                get_ip_result_queue = Queue()
+                                command_thread = threading.Thread(
+                                    target=execute_rcon,
+                                    args=(
+                                        ip_address,
+                                        port,
+                                        password,
+                                        f"getip {player['steamid']}",
+                                        get_ip_result_queue,
+                                    ),
+                                )
+                                command_thread.start()
+                                command_thread.join()  # Wait for the thread to complete
+                                # Retrieve the result from the queue
+                                get_ip_result: str = get_ip_result_queue.get()
+                                player_ip = get_ip_result.split(" ")[
+                                    -1
+                                ].strip()
+
+                                if (
+                                    player_exists[0]["steam_auth_ip"]
+                                    != player_ip
+                                ):
+                                    # Kick player using RCON
+                                    rcon_kick_player(
+                                        ip_address,
+                                        port,
+                                        password,
+                                        player["steamid"],
+                                    )
+                                    player["kick_reason"] = (
+                                        "SteamAuth IP Mismatch"
+                                    )
+                                    auto_kicked_players.append(player)
+                                    # Remove the player from the second_player_list
+                                    second_player_list.remove(player)
+                                    logging.info("Player Kicked: %s", player)
+                    else:
+                        # Kick player using RCON
+                        rcon_kick_player(
+                            ip_address, port, password, player["steamid"]
+                        )
+                        player["kick_reason"] = "Not Authenticated"
+                        auto_kicked_players.append(player)
+                        # Remove the player from the second_player_list
+                        second_player_list.remove(player)
+                        logging.info("Player Kicked: %s", player)
+
+                else:
+                    # Kick player using RCON
+                    rcon_kick_player(
+                        ip_address, port, password, player["steamid"]
+                    )
+                    player["kick_reason"] = (
+                        "Not Found in Database, therefore no SteamAuth available"
+                    )
+                    auto_kicked_players.append(player)
+                    logging.info("Player Kicked: %s", player)
+
+        app_settings.localserver.online_players = second_player_list
+        app_settings.localserver.online_players.sort()
+        # Check if last_online_players is different from online_players
+        # which means a player joined or left
+        if (
+            app_settings.localserver.last_online_players
+            != app_settings.localserver.online_players
+        ):
+            # Check any players that were in the last_online_players list
+            # but not in the online_players list. These are players who left the server
+            players_left = [
+                player
+                for player in app_settings.localserver.last_online_players
+                if player not in app_settings.localserver.online_players
+            ]
+            # Check any players that were in the online_players list,
+            # but not in the last_online_players list.
+            # These are players who joined the server
+            players_joined = [
+                player
+                for player in app_settings.localserver.online_players
+                if player not in app_settings.localserver.last_online_players
+            ]
+            for player in players_left:
+                logging.info("Player Left: %s", player)
+                # update player status to false in app_settings.localserver.all_players
+                for all_player in app_settings.localserver.all_players:
+                    if all_player["steam_id"] == player["steamid"]:
+                        all_player["online"] = False
+            for player in players_joined:
+                logging.info("Player Joined: %s", player)
+                # Check if a player exists in app_settings.localserver.all_players,
+                # with a matching steamid. if not, add the joined player,
+                # to the all_players list
+                if player["steamid"] not in [
+                    all_player["steam_id"]
+                    for all_player in app_settings.localserver.all_players
+                ]:
+                    app_settings.localserver.all_players.append(
+                        {
+                            "steam_id": player["steamid"],
+                            "steam_authenticated": False,
+                            "steam_auth_ip": "",
+                            "online": True,
+                            "name": player["name"],
+                            "player_id": player["playeruid"],
+                            "save_id": player["saveid"],
+                            "first_login": datetime.now(),
+                            "whitelisted": False,
+                            "whitelisted_ip": "",
+                            "banned": False,
+                            "is_admin": False,
+                        }
+                    )
+                # Player is already in the all_players list, update their status to True
+                else:
+                    for all_player in app_settings.localserver.all_players:
+                        if all_player["steam_id"] == player["steamid"]:
+                            all_player["online"] = True
+                            all_player["name"] = player["name"]
+                            all_player["player_id"] = player["playeruid"]
+                            all_player["save_id"] = player["saveid"]
+                            all_player["first_login"] = (
+                                datetime.now()
+                                if not all_player["first_login"]
+                                else all_player["first_login"]
+                            )
+
+        # Update the last_seen time for all players currently online
+        for player in app_settings.localserver.all_players:
+            if player["online"]:
+                player["last_seen"] = datetime.now()
+        # logging.info("All Players: %s", app_settings.localserver.all_players)
+
         reply["player_count"] = len(player_list)
         reply["players"] = player_list
+        if len(players_left) > 0:
+            reply["players_left"] = players_left
+        if len(players_joined) > 0:
+            reply["players_joined"] = players_joined
+        if len(auto_kicked_players) > 0:
+            reply["auto_kicked_players"] = auto_kicked_players
     elif "Failed to execute command" in result:
         reply["status"] = "error"
         reply["message"] = (
