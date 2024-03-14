@@ -66,7 +66,7 @@ class Settings:
     def __init__(self):
         self.dev: bool = False
         self.dev_ui: bool = False
-        self.no_ui: bool = False
+        self.no_ui: bool = True
         self.version: str = "0.9.4"
         self.supporter_build: bool = False
         self.supporter_version: str = "0.9.4"

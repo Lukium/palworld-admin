@@ -9,7 +9,7 @@ v0.9.4
 To use Auth, tell your players to visit http://[ipofyourserver]:8210/steam-auth (You are welcome and encouraged to use an SSL for your Palworld Admin Webserver, but it's up to you how you go about it)
 
 ## Fixed:
-- Player Joins and Leaves being announced again on Palwolr Admin UI
+- Player Joins and Leaves being announced again on Palwolrd Admin UI
 
 v0.9.3
 
