@@ -1,5 +1,20 @@
 Release Notes
 
+v0.9.6
+
+## New:
+- Join annoincements show if the user is authenticated and their IP
+
+## Fixed:
+- Error grabbing the steam_auth_ip from the database under certain scenarios
+
+## Improved:
+- Instead of running the auth on every RCON tick, run it only on player join
+
+v0.9.5
+
+Re-Release of 0.9.4 to fix bugs that had already made its way to pypi
+
 v0.9.4
 
 ## New:

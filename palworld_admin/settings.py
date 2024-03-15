@@ -67,9 +67,9 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.9.4"
+        self.version: str = "0.9.6"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.9.4"
+        self.supporter_version: str = "0.9.6"
         self.alembic_version: str = "170971d44a48"
         self.exe_path: str = ""
         self.app_os = ""

@@ -49,12 +49,17 @@ def execute_rcon(ip_address, port, password, command, queue) -> None:
         queue.put(result.strip())
 
 
-def rcon_broadcast(ip_address, port, password, message, command: str) -> dict:
+def rcon_broadcast(
+    ip_address, port, password, message: str, command: str
+) -> dict:
     """Broadcast the specified message to the server."""
     result_queue = Queue()
 
     if command == "broadcast" and app_settings.localserver.palguard_installed:
         rcon_command = "pgbroadcast"
+    elif command == "custom":
+        rcon_command = message.split(" ")[0]
+        message = " ".join(message.split(" ")[1:])
     else:
         rcon_command = command
 
@@ -82,12 +87,18 @@ def rcon_broadcast(ip_address, port, password, message, command: str) -> dict:
         reply["status"] = "error"
         reply["message"] = "Unknown command"
     else:
+        if command == "custom":
+            reply_message = (
+                f'Custom Command "{rcon_command} {message}" executed successfully'
+                + f". Result:\n{result}"
+            )
+        else:
+            reply_message = (
+                f'Command "{command}{" " + message if message else ""}" '
+                + f"executed successfully. Result:\n{result}"
+            )
         reply["status"] = "success"
-        message = (
-            f'Command "{command}{" " + message if message else ""}" '
-            + f"executed successfully. Result:\n{result}"
-        )
-        reply["message"] = message
+        reply["message"] = reply_message
     return reply
 
 
@@ -201,11 +212,17 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
 
 def rcon_fetch_players(ip_address, port, password) -> dict:
     """Fetch the list of players currently connected to the server."""
-    result_queue = Queue()
     app_settings.localserver.last_online_players = (
         app_settings.localserver.online_players
     )
-    app_settings.localserver.last_online_players.sort()
+    # Drop the ip_address from the last_online_players list
+    for player in app_settings.localserver.last_online_players:
+        player.pop("ip", None)
+        player.pop("authenticated", None)
+    result_queue = Queue()
+    app_settings.localserver.last_online_players.sort(
+        key=lambda x: x["steamid"]
+    )
     command_thread = threading.Thread(
         target=execute_rcon,
         args=(ip_address, port, password, "ShowPlayers", result_queue),
@@ -238,15 +255,14 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
         auto_kicked_players = []
         for player in players:
             player_data = player.split(",")
-            player_list.append(
-                {
-                    "name": player_data[0],
-                    "playeruid": player_data[1],
-                    "steamid": player_data[2],
-                    "saveid": hex(int(player_data[1]))[2:].upper(),
-                    "online": True,
-                }
-            )
+            player_info = {
+                "name": player_data[0],
+                "playeruid": player_data[1],
+                "steamid": player_data[2],
+                "saveid": hex(int(player_data[1]))[2:].upper(),
+                "online": True,
+            }
+            player_list.append(player_info)
 
         # Create a copy of player_list
         second_player_list = player_list.copy()
@@ -255,91 +271,93 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
             if player["playeruid"] == "00000000":
                 second_player_list.remove(player)
 
-        for player in player_list:
-            if app_settings.localserver.steam_auth:
-                # Get player from all_players list using steamid
-                player_exists = [
-                    all_player
-                    for all_player in app_settings.localserver.all_players
-                    if all_player["steam_id"] == player["steamid"]
-                ]
-                if player_exists:
-                    # Check if the player is steam_authenticated
-                    is_authenticated = player_exists[0]["steam_authenticated"]
-                    if is_authenticated:
-                        if app_settings.localserver.enforce_steam_auth_ip:
-                            # Check if Palguard is installed so getip can be used
-                            if not app_settings.localserver.palguard_installed:
-                                player["kick_reason"] = (
-                                    "SteamAuth IP Unenforceable - Palguard Not Installed"
-                                )
-                                auto_kicked_players.append(player)
-                                logging.info(
-                                    "SteamAuth IP Unenforceable - Palguard Not Installed"
-                                )
-                            else:
-                                # Get player's IP using RCON
-                                get_ip_result_queue = Queue()
-                                command_thread = threading.Thread(
-                                    target=execute_rcon,
-                                    args=(
-                                        ip_address,
-                                        port,
-                                        password,
-                                        f"getip {player['steamid']}",
-                                        get_ip_result_queue,
-                                    ),
-                                )
-                                command_thread.start()
-                                command_thread.join()  # Wait for the thread to complete
-                                # Retrieve the result from the queue
-                                get_ip_result: str = get_ip_result_queue.get()
-                                player_ip = get_ip_result.split(" ")[
-                                    -1
-                                ].strip()
+        # for player in player_list:
+        #     if app_settings.localserver.steam_auth:
+        #         # Get player from all_players list using steamid
+        #         player_exists = [
+        #             all_player
+        #             for all_player in app_settings.localserver.all_players
+        #             if all_player["steam_id"] == player["steamid"]
+        #         ]
+        #         if player_exists:
+        #             # Check if the player is steam_authenticated
+        #             is_authenticated = player_exists[0]["steam_authenticated"]
+        #             if is_authenticated:
+        #                 if app_settings.localserver.enforce_steam_auth_ip:
+        #                     # Check if Palguard is installed so getip can be used
+        #                     if not app_settings.localserver.palguard_installed:
+        #                         player["kick_reason"] = (
+        #                             "SteamAuth IP Unenforceable - Palguard Not Installed"
+        #                         )
+        #                         auto_kicked_players.append(player)
+        #                         logging.info(
+        #                             "SteamAuth IP Unenforceable - Palguard Not Installed"
+        #                         )
+        #                     else:
+        #                         # Get player's IP using RCON
+        #                         get_ip_result_queue = Queue()
+        #                         command_thread = threading.Thread(
+        #                             target=execute_rcon,
+        #                             args=(
+        #                                 ip_address,
+        #                                 port,
+        #                                 password,
+        #                                 f"getip {player['steamid']}",
+        #                                 get_ip_result_queue,
+        #                             ),
+        #                         )
+        #                         command_thread.start()
+        #                         command_thread.join()  # Wait for the thread to complete
+        #                         # Retrieve the result from the queue
+        #                         get_ip_result: str = get_ip_result_queue.get()
+        #                         player_ip = get_ip_result.split(" ")[
+        #                             -1
+        #                         ].strip()
 
-                                if (
-                                    player_exists[0]["steam_auth_ip"]
-                                    != player_ip
-                                ):
-                                    # Kick player using RCON
-                                    rcon_kick_player(
-                                        ip_address,
-                                        port,
-                                        password,
-                                        player["steamid"],
-                                    )
-                                    player["kick_reason"] = (
-                                        "SteamAuth IP Mismatch"
-                                    )
-                                    auto_kicked_players.append(player)
-                                    # Remove the player from the second_player_list
-                                    second_player_list.remove(player)
-                                    logging.info("Player Kicked: %s", player)
-                    else:
-                        # Kick player using RCON
-                        rcon_kick_player(
-                            ip_address, port, password, player["steamid"]
-                        )
-                        player["kick_reason"] = "Not Authenticated"
-                        auto_kicked_players.append(player)
-                        # Remove the player from the second_player_list
-                        second_player_list.remove(player)
-                        logging.info("Player Kicked: %s", player)
+        #                         if (
+        #                             player_exists[0]["steam_auth_ip"]
+        #                             != player_ip
+        #                         ):
+        #                             # Kick player using RCON
+        #                             rcon_kick_player(
+        #                                 ip_address,
+        #                                 port,
+        #                                 password,
+        #                                 player["steamid"],
+        #                             )
+        #                             player["kick_reason"] = (
+        #                                 "SteamAuth IP Mismatch"
+        #                             )
+        #                             auto_kicked_players.append(player)
+        #                             # Remove the player from the second_player_list
+        #                             second_player_list.remove(player)
+        #                             logging.info("Player Kicked: %s", player)
+        #             else:
+        #                 # Kick player using RCON
+        #                 rcon_kick_player(
+        #                     ip_address, port, password, player["steamid"]
+        #                 )
+        #                 player["kick_reason"] = "Not Authenticated"
+        #                 auto_kicked_players.append(player)
+        #                 # Remove the player from the second_player_list
+        #                 second_player_list.remove(player)
+        #                 logging.info("Player Kicked: %s", player)
 
-                else:
-                    # Kick player using RCON
-                    rcon_kick_player(
-                        ip_address, port, password, player["steamid"]
-                    )
-                    player["kick_reason"] = (
-                        "Not Found in Database, therefore no SteamAuth available"
-                    )
-                    auto_kicked_players.append(player)
-                    logging.info("Player Kicked: %s", player)
+        #         else:
+        #             # Kick player using RCON
+        #             rcon_kick_player(
+        #                 ip_address, port, password, player["steamid"]
+        #             )
+        #             player["kick_reason"] = (
+        #                 "Not Found in Database, therefore no SteamAuth available"
+        #             )
+        #             auto_kicked_players.append(player)
+        #             logging.info("Player Kicked: %s", player)
 
         app_settings.localserver.online_players = second_player_list
-        app_settings.localserver.online_players.sort()
+        app_settings.localserver.online_players.sort(
+            key=lambda x: x["steamid"]
+        )
         # Check if last_online_players is different from online_players
         # which means a player joined or left
         if (
@@ -368,6 +386,120 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
                     if all_player["steam_id"] == player["steamid"]:
                         all_player["online"] = False
             for player in players_joined:
+                player_kicked = False
+                if app_settings.localserver.palguard_installed:
+                    # Get player's IP using RCON
+                    get_ip_result_queue = Queue()
+                    command_thread = threading.Thread(
+                        target=execute_rcon,
+                        args=(
+                            ip_address,
+                            port,
+                            password,
+                            f"getip {player['steamid']}",
+                            get_ip_result_queue,
+                        ),
+                    )
+                    command_thread.start()
+                    command_thread.join()  # Wait for the thread to complete
+                    # Retrieve the result from the queue
+                    get_ip_result: str = get_ip_result_queue.get()
+                    player_ip = get_ip_result.split(" ")[-1].strip()
+                    player["ip"] = player_ip
+                if app_settings.localserver.steam_auth:
+                    # Get player from all_players list using steamid
+                    player_exists = [
+                        all_player
+                        for all_player in app_settings.localserver.all_players
+                        if all_player["steam_id"] == player["steamid"]
+                    ]
+                    if player_exists:
+                        # Check if the player is steam_authenticated
+                        is_authenticated = player_exists[0][
+                            "steam_authenticated"
+                        ]
+                        if is_authenticated:
+                            if app_settings.localserver.enforce_steam_auth_ip:
+                                # Check if Palguard is installed so getip can be used
+                                if (
+                                    not app_settings.localserver.palguard_installed
+                                ):
+                                    player["kick_reason"] = (
+                                        "SteamAuth IP Unenforceable - Palguard Not Installed"
+                                    )
+                                    auto_kicked_players.append(player)
+                                    logging.info(
+                                        "SteamAuth IP Unenforceable - Palguard Not Installed"
+                                    )
+                                else:
+                                    # # Get player's IP using RCON
+                                    # get_ip_result_queue = Queue()
+                                    # command_thread = threading.Thread(
+                                    #     target=execute_rcon,
+                                    #     args=(
+                                    #         ip_address,
+                                    #         port,
+                                    #         password,
+                                    #         f"getip {player['steamid']}",
+                                    #         get_ip_result_queue,
+                                    #     ),
+                                    # )
+                                    # command_thread.start()
+                                    # command_thread.join()  # Wait for the thread to complete
+                                    # # Retrieve the result from the queue
+                                    # get_ip_result: str = (
+                                    #     get_ip_result_queue.get()
+                                    # )
+                                    # player_ip = get_ip_result.split(" ")[
+                                    #     -1
+                                    # ].strip()
+
+                                    if (
+                                        player_exists[0]["steam_auth_ip"]
+                                        != player_ip
+                                    ):
+                                        # Kick player using RCON
+                                        rcon_kick_player(
+                                            ip_address,
+                                            port,
+                                            password,
+                                            player["steamid"],
+                                        )
+                                        player["kick_reason"] = (
+                                            "SteamAuth IP Mismatch"
+                                        )
+                                        auto_kicked_players.append(player)
+                                        # Remove the player from the second_player_list
+                                        second_player_list.remove(player)
+                                        logging.info(
+                                            "Player Kicked: %s", player
+                                        )
+                                        player_kicked = True
+                        else:
+                            # Kick player using RCON
+                            rcon_kick_player(
+                                ip_address, port, password, player["steamid"]
+                            )
+                            player["kick_reason"] = "Not Authenticated"
+                            auto_kicked_players.append(player)
+                            # Remove the player from the second_player_list
+                            second_player_list.remove(player)
+                            logging.info("Player Kicked: %s", player)
+                            player_kicked = True
+
+                    else:
+                        # Kick player using RCON
+                        rcon_kick_player(
+                            ip_address, port, password, player["steamid"]
+                        )
+                        player["kick_reason"] = (
+                            "Not Found in Database, therefore no SteamAuth available"
+                        )
+                        auto_kicked_players.append(player)
+                        logging.info("Player Kicked: %s", player)
+                        player_kicked = True
+                if not player_kicked:
+                    player["authenticated"] = True
                 logging.info("Player Joined: %s", player)
                 # Check if a player exists in app_settings.localserver.all_players,
                 # with a matching steamid. if not, add the joined player,
@@ -402,7 +534,7 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
                             all_player["save_id"] = player["saveid"]
                             all_player["first_login"] = (
                                 datetime.now()
-                                if not all_player["first_login"]
+                                if all_player["first_login"] is None
                                 else all_player["first_login"]
                             )
 
@@ -410,7 +542,7 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
         for player in app_settings.localserver.all_players:
             if player["online"]:
                 player["last_seen"] = datetime.now()
-        # logging.info("All Players: %s", app_settings.localserver.all_players)
+        logging.info("All Players: %s", app_settings.localserver.all_players)
 
         reply["player_count"] = len(player_list)
         reply["players"] = player_list

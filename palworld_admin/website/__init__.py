@@ -63,6 +63,7 @@ from palworld_admin.helper.dbmanagement import (
     get_stored_default_settings,
     commit_players_to_db,
     get_players_from_db,
+    get_alembic_version,
 )
 from palworld_admin.settings import app_settings
 from palworld_admin.converter.convert import convert_json_to_sav
@@ -221,6 +222,10 @@ def flask_app():
         db.create_all()
         initialize_database_defaults()
         app_settings.localserver.all_players = get_players_from_db()
+        alembic_version = get_alembic_version()
+
+    if alembic_version:
+        logging.info("Alembic DB Version: %s", alembic_version)
 
     @app.route("/restore-server-data", methods=["POST"])
     @maybe_requires_auth
@@ -1274,6 +1279,9 @@ def flask_app():
                     reply["players_left"] = result["players_left"]
                 if "players_joined" in result:
                     reply["players_joined"] = result["players_joined"]
+                    logging.info(
+                        "Players Joined: %s", result["players_joined"]
+                    )
                 if "auto_kicked_players" in result:
                     reply["auto_kicked_players"] = result[
                         "auto_kicked_players"

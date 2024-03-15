@@ -3,13 +3,21 @@
 import logging
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.inspection import inspect
 
 from palworld_admin.classes.dbmodels import (
     db,
+    AlembicVersion,
     LauncherSettings,
     Connection,
     Players,
 )
+
+
+def get_alembic_version() -> str:
+    """Return the current Alembic version."""
+    version = AlembicVersion.query.first()
+    return version.version_num if version else "None"
 
 
 def get_stored_default_settings(model_name: str) -> dict:
@@ -152,52 +160,52 @@ def save_user_settings_to_db(user_settings) -> dict:
 
 def commit_players_to_db(players: list) -> None:
     """Commit a list of players to the database."""
+
+    # Dynamically build a list of fields from the Players table (excluding the id field)
+    fields = [
+        column.name for column in inspect(Players).c if column.name != "id"
+    ]
+
     for player in players:
-        if player["steam_id"]:
-            existing_player: Players = Players.query.filter_by(
+        if "steam_id" in player and player["steam_id"]:
+            # Try to find the player in the database
+            existing_player = Players.query.filter_by(
                 steam_id=player["steam_id"]
             ).first()
+
             if existing_player:
-                existing_player.steam_authenticated = player[
-                    "steam_authenticated"
-                ]
-                existing_player.steam_auth_ip = (
-                    player["steam_auth_ip"]
-                    if "steam_auth_ip" in player
-                    else None
-                )
-                existing_player.online = player["online"]
-                existing_player.name = player["name"]
-                existing_player.player_id = player["player_id"]
-                existing_player.save_id = player["save_id"]
-                existing_player.last_seen = player["last_seen"]
+                # Player exists, so we update their information
+                for field in fields:
+                    if field in player:
+                        setattr(existing_player, field, player[field])
             else:
-                new_player = Players(**player)
+                # No existing player found, prepare a new record
+                # Ensure only fields relevant to the Players table are included
+                player_data = {
+                    field: player[field] for field in fields if field in player
+                }
+                new_player = Players(**player_data)
                 db.session.add(new_player)
-    db.session.commit()
-    logging.info("Committed %s players to the database.", len(players))
-    db.session.close()
-    return None
+
+    try:
+        db.session.commit()
+        logging.info("Committed %s players to the database.", len(players))
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Error committing players to the database: %s", str(e))
+    finally:
+        db.session.close()
 
 
 def get_players_from_db() -> list:
     """Return a list of all players from the database."""
+    fields = [
+        column.name for column in inspect(Players).c if column.name != "id"
+    ]
+
     players = Players.query.all()
     player_list = []
     for player in players:
-        player_info = {
-            "steam_id": player.steam_id,
-            "steam_authenticated": player.steam_authenticated,
-            "online": player.online,
-            "name": player.name,
-            "player_id": player.player_id,
-            "save_id": player.save_id,
-            "first_login": player.first_login,
-            "last_seen": player.last_seen,
-            "whitelisted": player.whitelisted,
-            "whitelisted_ip": player.whitelisted_ip,
-            "banned": player.banned,
-            "is_admin": player.is_admin,
-        }
+        player_info = {field: getattr(player, field) for field in fields}
         player_list.append(player_info)
     return player_list
