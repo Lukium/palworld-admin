@@ -4,7 +4,7 @@
 
 [<image src="https://img.shields.io/github/v/release/Lukium/palworld-admin?style=for-the-badge&label=github"></image>](https://github.com/Lukium/palworld-admin/releases/latest) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/lukium/palworld-admin/total?style=for-the-badge) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/lukium/palworld-admin?style=for-the-badge) <br>
 [<image src="https://img.shields.io/pypi/v/palworld-admin?style=for-the-badge"></image>](https://pypi.org/project/palworld_admin/) ![PyPI - Downloads](https://img.shields.io/pypi/dm/palworld-admin?style=for-the-badge) ![PyPI - Format](https://img.shields.io/pypi/format/palworld-admin?style=for-the-badge) <br>
-[<image src="https://img.shields.io/docker/v/lukium/palworld-admin-wine/latest?style=for-the-badge&logo=docker&label=docker-wine"></image>](https://github.com/Lukium/palworld-admin/releases/latest) ![Docker Pulls](https://img.shields.io/docker/pulls/lukium/palworld-admin-wine?style=for-the-badge) <br>
+[<image src="https://img.shields.io/docker/v/lukium/palworld-admin-wine/latest?style=for-the-badge&logo=docker&label=docker-wine"></image>](https://hub.docker.com/repository/docker/lukium/palworld-admin-wine/general) ![Docker Pulls](https://img.shields.io/docker/pulls/lukium/palworld-admin-wine?style=for-the-badge) <br>
 [<image src="https://img.shields.io/discord/629066705057873922?style=for-the-badge&label=discord"></image>](https://discord.gg/lukium)
 
 
