@@ -23,7 +23,7 @@ RUN	apt-get update && \
         # Ensure the sudoers file has correct permissions
     	chmod 0440 /etc/sudoers.d/lukium && \
         # Give lukium ownership of the relevant directories
-        mkdir -p /home/lukium/palworld-admin && \
+        mkdir -p /home/lukium/palworld-admin && \        
         chown -R lukium:lukium /home/lukium/palworld-admin
 
 # Set the working directory to the application directory
@@ -57,10 +57,19 @@ RUN     sudo dpkg --add-architecture i386 && \
         sudo apt-get remove -y xvfb winetricks && \
         sudo apt-get autoremove -y && \
         sudo apt-get clean && \
-        sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+        # Create the SteamCMD directory and give 'lukium' ownership
+        sudo mkdir -p /home/lukium/.wine/drive_c/steamcmd && \
+        sudo chown -R lukium:lukium /home/lukium/.wine/drive_c/steamcmd
 
 # Document that the service listens on specific ports
-EXPOSE 8210/tcp 8211/udp 25575/tcp 25575/udp 27015/tcp 27015/udp
+EXPOSE 8210/tcp 8211/udp 25575/tcp 27015/udp
+
+# Setup Volumes
+VOLUME ["/home/lukium/palworld-admin", "/home/lukium/.wine/drive_c/steamcmd"]
+
+# Setup Environment Variables
+ENV MANAGEMENT_PASSWORD="palworld-admin-123"
 
 # Use the custom entrypoint script as 'lukium'
 ENTRYPOINT ["/home/lukium/entrypoint.sh"]

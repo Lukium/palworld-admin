@@ -47,6 +47,7 @@ class LocalServer:
         self.running_check_count: int = 0
         self.server_monitoring_interval = 5
         self.player_commit_to_db_interval = 60
+        self.launcher_args: dict = {}
 
         # Backup Variables
         self.backup_path = ""

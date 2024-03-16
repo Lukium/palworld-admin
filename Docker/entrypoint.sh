@@ -8,21 +8,6 @@ mkdir -p "$PALWORLD_DIR"
 export WINEPREFIX="/home/lukium/.wine"
 export WINEDEBUG=-all
 
-# Check if WINEPREFIX/drive_c/steamcmd exists and correct ownership if necessary
-STEAMCMD_DIR="$WINEPREFIX/drive_c/steamcmd"
-if [ -d "$STEAMCMD_DIR" ]; then
-    OWNER_USER=$(stat -c '%U' "$STEAMCMD_DIR")
-    OWNER_GROUP=$(stat -c '%G' "$STEAMCMD_DIR")
-    if [ "$OWNER_USER" != "lukium" ] || [ "$OWNER_GROUP" != "lukium" ]; then
-        echo "Correcting ownership of $STEAMCMD_DIR to lukium:lukium"
-        sudo chown -R lukium:lukium "$STEAMCMD_DIR"
-    else
-        echo "$STEAMCMD_DIR ownership is already correct."
-    fi
-else
-    echo "$STEAMCMD_DIR does not exist."
-fi
-
 # GitHub API URL for the latest release
 API_URL="https://api.github.com/repos/Lukium/palworld-admin/releases/latest"
 
@@ -68,4 +53,5 @@ fi
 MANAGEMENT_PASSWORD="${MANAGEMENT_PASSWORD}"
 
 # Run the application
+"$PALWORLD_DIR/palworld-admin-linux" -mdb
 exec "$PALWORLD_DIR/palworld-admin-linux" -r -mp "$MANAGEMENT_PASSWORD"

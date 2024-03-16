@@ -25,7 +25,6 @@ from flask import (
     send_from_directory,
     redirect,
     url_for,
-    make_response,
     flash,
     render_template,
     render_template_string,
@@ -222,6 +221,9 @@ def flask_app():
         db.create_all()
         initialize_database_defaults()
         app_settings.localserver.all_players = get_players_from_db()
+        app_settings.localserver.launcher_args = get_stored_default_settings(
+            "LauncherSettings"
+        )
         alembic_version = get_alembic_version()
 
     if alembic_version:
@@ -1007,6 +1009,17 @@ def flask_app():
                 and result["status"] == "success"
                 and result["value"] is True
             ):
+                logging.info(
+                    "Launcher Args: %s", app_settings.localserver.launcher_args
+                )
+                app_settings.localserver.steam_auth = (
+                    app_settings.localserver.launcher_args.get("steam_auth")
+                )
+                app_settings.localserver.enforce_steam_auth_ip = (
+                    app_settings.localserver.launcher_args.get(
+                        "enforce_steam_auth_ip"
+                    )
+                )
                 app_settings.localserver.expected_to_be_running = True
                 reply["vars"] = {}
                 reply["vars"]["expectedToBeRunning"] = True

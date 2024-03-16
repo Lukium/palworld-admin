@@ -1,5 +1,10 @@
 Release Notes
 
+v0.9.7
+
+## Fixed:
+- SteamAuth settings not applying when server is already running when Palworld Admin is launched
+
 v0.9.6
 
 ## New:

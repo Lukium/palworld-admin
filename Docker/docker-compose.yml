@@ -14,7 +14,7 @@ services:
       - '${QUERY_PORT}:27015/udp'
     volumes:
       - ./palworld-admin:/home/lukium/palworld-admin/
-      - ./PalServer:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/
+      - ./PalServer:/home/lukium/.wine/drive_c/steamcmd
 
 # .env
 # CONTAINER_NAME=Palworld Server
