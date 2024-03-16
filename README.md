@@ -79,7 +79,7 @@ docker run \
 	-p [desired query port]:27015/tcp \
 	-p [desired query port]:27015/udp \
 	-v [location on host to mount palworld-admin directory]:/home/lukium/palworld-admin/ \
-	-v [location on host to mount Palworld Dedicated Server directory]:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/ \
+	-v [location on host to mount Palworld Dedicated Server directory]:/home/lukium/.wine/drive_c/steamcmd/ \
 	--name [desired container name] \
 	lukium/palworld-admin-wine:latest
 ```
