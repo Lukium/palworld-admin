@@ -103,7 +103,7 @@ services:
       - '${QUERY_PORT}:27015/udp'
     volumes:
       - ./palworld-admin:/home/lukium/palworld-admin/
-      - ./PalServer:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/
+      - ./PalServer:/home/lukium/.wine/drive_c/steamcmd/
 
 # .env
 
@@ -126,7 +126,7 @@ docker run \
 	-p 27015:27015/tcp \
 	-p 27015:27015/udp \
 	-v $HOME/palworld-admin/app/:/home/lukium/palworld-admin/ \
-	-v $HOME/palworld-admin/server/:/home/lukium/.wine/drive_c/steamcmd/steamapps/common/PalServer/ \
+	-v $HOME/palworld-admin/server/:/home/lukium/.wine/drive_c/steamcmd/ \
 	--name palworld-admin-wine \
 	lukium/palworld-admin-wine:latest
 ```
