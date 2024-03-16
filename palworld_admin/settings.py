@@ -70,7 +70,7 @@ class Settings:
         self.version: str = "0.9.6"
         self.supporter_build: bool = False
         self.supporter_version: str = "0.9.6"
-        self.alembic_version: str = "170971d44a48"
+        self.alembic_version: str = "59a004fd30a9"
         self.exe_path: str = ""
         self.app_os = ""
         self.main_ui = None
