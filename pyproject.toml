@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "palworld_admin"
-version = "0.9.7"
+version = "0.9.8"
 description = "Palworld Admin is a GUI to manage your Palworld Dedicated Server, including deployment, configuration, monitoring and backups."
 authors = ["Lukium <mrlukium@outlook.com>"]
 license = "Expressed Permission Only"
@@ -9,14 +9,14 @@ include = ["classes/*", "converter/*", "helper/*", "rcon/*", "servermanager/*", 
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
+cryptography = ">=42.0.2"
 requests = "^2.31.0"
 eventlet = "^0.35.1"
 Flask = "^3.0.1"
 flask-sqlalchemy = "^3.1.1"
 flask-socketio = "^5.3.6"
 flask-migrate = "^4.0.5"
-cryptography = ">=42.0.2"
-flask-openid = "^1.3.0"
+flask-openid-steam = "^1.3.1"
 
 [tool.poetry.scripts]
 palworld-admin = 'palworld_admin.main:main'

@@ -32,7 +32,7 @@ from flask import (
     request,
 )
 
-from flask_openid import OpenID
+from flask_openid_steam.flask_openid_steam import OpenID
 
 from palworld_admin.rcon import (
     rcon_connect,
@@ -1292,9 +1292,9 @@ def flask_app():
                     reply["players_left"] = result["players_left"]
                 if "players_joined" in result:
                     reply["players_joined"] = result["players_joined"]
-                    logging.info(
-                        "Players Joined: %s", result["players_joined"]
-                    )
+                    # logging.info(
+                    #     "Players Joined: %s", result["players_joined"]
+                    # )
                 if "auto_kicked_players" in result:
                     reply["auto_kicked_players"] = result[
                         "auto_kicked_players"

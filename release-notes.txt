@@ -1,5 +1,18 @@
 Release Notes
 
+v0.9.8
+
+## New:
+- Created and Published Flask-OpenID-Steam (Patched Flask-OpenID) to pypi to be used on main project so pypi version is fixed
+- Palguard Version bumped to 1.683 (Palguard Discord Release)
+
+## Fixed:
+- Rare situation where Palguard would not be properly detected while installed.
+
+## Improved:
+- Palguard Presence Detection (On RCON Connect)
+- Refresh Settings on Server Data Import/Restore
+
 v0.9.7
 
 ## Fixed:

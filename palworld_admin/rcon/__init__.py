@@ -156,6 +156,7 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
     palguard_commands_thread.join()  # Wait for the thread to complete
     palguard_commands_result: str = palguard_commands_queue.get()
     if "Unknown command" not in palguard_commands_result:
+        app_settings.localserver.palguard_installed = True
         palguard_commands_list = palguard_commands_result.split(";")
         palguard_commands_list.sort()
         # Remove any empty strings from the list
@@ -168,6 +169,8 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
             command_dict = {"name": command_name, "args": command_args}
             final_palguard_commands_list.append(command_dict)
         reply["palguard_commands"] = final_palguard_commands_list
+    else:
+        app_settings.localserver.palguard_installed = False
 
     if "Failed to execute command" in result:
         reply["status"] = "error"
@@ -194,6 +197,9 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
         reply["message"] = "RCON Connected!"
         reply["server_name"] = result.split("]")[1].strip()
         reply["server_version"] = result.split("[")[1].split("]")[0].strip()
+        reply["palguard_installed"] = (
+            app_settings.localserver.palguard_installed
+        )
         reply["base64_encoded"] = app_settings.localserver.base64_encoded
 
         if not skip_save:
@@ -217,8 +223,12 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
     )
     # Drop the ip_address from the last_online_players list
     for player in app_settings.localserver.last_online_players:
-        player.pop("ip", None)
-        player.pop("authenticated", None)
+        if "ip" in player:
+            player.pop("ip", None)
+        if "authenticated" in player:
+            player.pop("authenticated", None)
+        if "kick_reason" in player:
+            player.pop("kick_reason", None)
     result_queue = Queue()
     app_settings.localserver.last_online_players.sort(
         key=lambda x: x["steamid"]
@@ -323,22 +333,22 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
                     get_ip_result: str = get_ip_result_queue.get()
                     player_ip = get_ip_result.split(" ")[-1].strip()
                     player["ip"] = player_ip
-                logging.info("Player: %s", player)
-                logging.info(
-                    "SteamAuth Enabled: %s",
-                    app_settings.localserver.steam_auth,
-                )
+                # logging.info("Player: %s", player)
+                # logging.info(
+                #     "SteamAuth Enabled: %s",
+                #     app_settings.localserver.steam_auth,
+                # )
                 if app_settings.localserver.steam_auth:
-                    logging.info(
-                        "All Players: %s", app_settings.localserver.all_players
-                    )
+                    # logging.info(
+                    #     "All Players: %s", app_settings.localserver.all_players
+                    # )
                     # Get player from all_players list using steamid
                     player_exists = [
                         all_player
                         for all_player in app_settings.localserver.all_players
                         if all_player["steam_id"] == player["steamid"]
                     ]
-                    logging.info("Player Exists: %s", player_exists)
+                    # logging.info("Player Exists: %s", player_exists)
                     if player_exists:
                         # Check if the player is steam_authenticated
                         is_authenticated = player_exists[0][
