@@ -8,13 +8,15 @@ services:
       MANAGEMENT_PASSWORD: ${MANAGEMENT_PASSWORD}
     ports:
       - '${ADMIN_PORT}:8210'
-      - '${GAME_PORT}:8211/udp'
-      - '${RCON_PORT}:25575'
-      - '${QUERY_PORT}:27015'
-      - '${QUERY_PORT}:27015/udp'
+      - '${GAME_PORT}:${GAME_PORT}/udp'
+      - '${GAME_PORT}:${GAME_PORT}/tcp'
+      - '${QUERY_PORT}:${QUERY_PORT}/udp'
     volumes:
       - ./palworld-admin:/home/lukium/palworld-admin/
       - ./PalServer:/home/lukium/.wine/drive_c/steamcmd
+
+# Do not use volumes if you run the docker image in Windows, it will cause permission issues
+# Instead, use the Volumes Backup & Share extension to access server files
 
 # .env
 # CONTAINER_NAME=Palworld Server
