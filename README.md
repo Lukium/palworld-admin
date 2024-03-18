@@ -4,7 +4,7 @@
 
 [<image src="https://img.shields.io/github/v/release/Lukium/palworld-admin?style=for-the-badge&label=github"></image>](https://github.com/Lukium/palworld-admin/releases/latest) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/lukium/palworld-admin/total?style=for-the-badge) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/lukium/palworld-admin?style=for-the-badge) <br>
 [<image src="https://img.shields.io/pypi/v/palworld-admin?style=for-the-badge"></image>](https://pypi.org/project/palworld_admin/) ![PyPI - Downloads](https://img.shields.io/pypi/dm/palworld-admin?style=for-the-badge) ![PyPI - Format](https://img.shields.io/pypi/format/palworld-admin?style=for-the-badge) <br>
-[<image src="https://img.shields.io/docker/v/lukium/palworld-admin-wine/latest?style=for-the-badge&logo=docker&label=docker-wine"></image>](https://github.com/Lukium/palworld-admin/releases/latest) ![Docker Pulls](https://img.shields.io/docker/pulls/lukium/palworld-admin-wine?style=for-the-badge) <br>
+[<image src="https://img.shields.io/docker/v/lukium/palworld-admin-wine/latest?style=for-the-badge&logo=docker&label=docker-wine"></image>](https://hub.docker.com/repository/docker/lukium/palworld-admin-wine/general) ![Docker Pulls](https://img.shields.io/docker/pulls/lukium/palworld-admin-wine?style=for-the-badge) <br>
 [<image src="https://img.shields.io/discord/629066705057873922?style=for-the-badge&label=discord"></image>](https://discord.gg/lukium)
 
 
@@ -73,11 +73,9 @@ Simply run (if using Docker, or use any alternative you like such as Docker Comp
 docker run \
 	-e MANAGEMENT_PASSWORD="[management-password]" \
 	-p [desired palworld-admin port]:8210/tcp \
-	-p [desired game port]:8211/udp \
-	-p [desired RCON port]:25575/tcp \
-	-p [desired RCON port]:25575/udp \
-	-p [desired query port]:27015/tcp \
-	-p [desired query port]:27015/udp \
+	-p [desired game port]:[desired game port]/udp \
+	-p [desired RCON port]:[desired RCON port]/tcp \
+	-p [desired query port]:[desired query port]/udp \
 	-v [location on host to mount palworld-admin directory]:/home/lukium/palworld-admin/ \
 	-v [location on host to mount Palworld Dedicated Server directory]:/home/lukium/.wine/drive_c/steamcmd/ \
 	--name [desired container name] \
@@ -96,11 +94,10 @@ services:
     environment:
       MANAGEMENT_PASSWORD: ${MANAGEMENT_PASSWORD}
     ports:
-      - '${ADMIN_PORT}:8210'
-      - '${GAME_PORT}:8211/udp'
-      - '${RCON_PORT}:25575'
-      - '${QUERY_PORT}:27015'
-      - '${QUERY_PORT}:27015/udp'
+      - '${ADMIN_PORT}:8210/tcp'
+      - '${GAME_PORT}:${GAME_PORT}/udp'
+      - '${RCON_PORT}:${RCON_PORT}/tcp'
+      - '${QUERY_PORT}:${QUERY_PORT}/udp'
     volumes:
       - ./palworld-admin:/home/lukium/palworld-admin/
       - ./PalServer:/home/lukium/.wine/drive_c/steamcmd/
