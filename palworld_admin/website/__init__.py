@@ -1007,8 +1007,30 @@ def flask_app():
             result = check_server_running()
             # logging.info("Result: %s", result)
 
+            launcher_args = app_settings.localserver.launcher_args
+
             if result["value"] is False:
                 app_settings.localserver.running = False
+
+            # If the server is not running and it's expected to be running,
+            # And no client is connected to backend, restart the server
+            if (
+                not app_settings.localserver.running
+                and app_settings.localserver.expected_to_be_running
+                and app_settings.localserver.launcher_args[
+                    "auto_restart_on_unexpected_shutdown"
+                ]
+                and app_settings.localserver.launcher_args[
+                    "auto_restart_triggers"
+                ]
+                and app_settings.current_client is None
+            ):
+                logging.info(
+                    "Server stopped, and there's no client to restart it. Restarting Server..."
+                )
+                with app.app_context():
+                    run_server(launcher_args=launcher_args)
+                return
 
             # If this is the first check, set the expected_to_be_running variable
             if (
@@ -1037,6 +1059,8 @@ def flask_app():
             reply["command"] = "check server running"
             reply["success"] = result["status"] == "success"
             reply["vars"] = {
+                "launcherArgs": app_settings.localserver.launcher_args,
+                "expectedToBeRunning": app_settings.localserver.expected_to_be_running,
                 "serverRunning": result["value"],
                 "runningCheckCount": app_settings.localserver.running_check_count,
                 "cpuUsage": result["cpu_usage"],
@@ -1440,6 +1464,8 @@ def flask_app():
             # Use socketio.sleep for proper thread management
             socketio.sleep(0.5)
 
+    check_install()
+    # Start the server from the CLI if the settings are set
     if (
         app_settings.cli_launch_server
         and app_settings.localserver.palserver_installed
@@ -1458,7 +1484,10 @@ def flask_app():
                 launcher_args["public_port"] = (
                     app_settings.localserver.server_settings["PublicPort"]
                 )
-                start_server_socket(launcher_args)
+
+                run_server(launcher_args=launcher_args)
+                app_settings.localserver.running = True
+                app_settings.localserver.expected_to_be_running = True
 
         # Start the server from the CLI
         socketio.start_background_task(task__launch_server_from_cli)

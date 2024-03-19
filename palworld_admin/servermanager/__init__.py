@@ -69,6 +69,7 @@ def check_palworld_install() -> dict:
             if len(file_content) > 0:
                 result["status"] = "success"
                 result["value"] = True
+                app_settings.localserver.palserver_installed = True
             else:
                 result["status"] = "success"
                 result["value"] = False
@@ -678,6 +679,7 @@ def run_server(launcher_args: dict = None):
             "Palguard installed: %s",
             app_settings.localserver.palguard_installed,
         )
+        app_settings.localserver.running = True
     except Exception as e:  # pylint: disable=broad-except
         if log:
             logging.error("Error starting server: %s", e)

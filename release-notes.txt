@@ -6,6 +6,7 @@ v0.9.9
 - Added --launch-server / -ls command line argument (launches the server immediately if server is installed and settings are stored for launching server successfully)
 - Added --port / -p command line argument (Allows Palworld Admin to listen on a port other than 8210 - still the default)
 - Added MANAGEMENT_PORT to wine docker image (for passing --port to Palworld Admin)
+- When launched with -ls the webserver can restart a server after an unexpected shutdown even if no client is connected to the backend.
 
 ## Improved:
 - Moved cli_parsing to settings script for earlier parsing

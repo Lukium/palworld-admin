@@ -110,7 +110,7 @@ class Settings:
 
         # self.shutdown_requested = False
 
-        self.current_client: str = ""
+        self.current_client: str = None
 
         self.set_logging()
         # self.set_pyinstaller_mode()
@@ -389,7 +389,7 @@ class Settings:
 
     def download_ui(self):
         """Download the UI files if necessary."""
-        if self.migration_mode or self.cli_no_ui or self.no_ui:
+        if self.migration_mode:
             return
         if not self.dev:
             self.memorystorage.download_static_files()
@@ -497,6 +497,8 @@ class Settings:
 
     def monitor_shutdown(self):
         """Monitor the shutdown status of the UI."""
+        if self.main_ui is None:
+            return
 
         def monitor():
             # while not self.shutdown_requested:
