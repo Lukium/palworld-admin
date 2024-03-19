@@ -70,7 +70,10 @@ function createWindow() {
 
     mainWindow.setMenu(null);
 
-    mainWindow.loadURL('http://localhost:8210');
+    const portArgIndex = process.argv.findIndex(arg => arg.startsWith('--port='));
+    const port = portArgIndex !== -1 ? process.argv[portArgIndex].split('=')[1] : 8210;
+
+    mainWindow.loadURL(`http://localhost:${port}`);
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
@@ -163,19 +166,19 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
     // Post to /shutdown to shutdown the server
-    const http = require('http');
-    const options = {
-        hostname: '127.0.0.1',
-        port: 8210,
-        path: '/shutdown',
-        method: 'POST',
-    };
-    const req = http.request(options, (res) => {
-        console.log(`statusCode: ${res.statusCode}`);
-    });
-    req.on('error', (error) => {
-        console.error(error);
-    });
-    req.end();    
+    // const http = require('http');
+    // const options = {
+    //     hostname: '127.0.0.1',
+    //     port: 8210,
+    //     path: '/shutdown',
+    //     method: 'POST',
+    // };
+    // const req = http.request(options, (res) => {
+    //     console.log(`statusCode: ${res.statusCode}`);
+    // });
+    // req.on('error', (error) => {
+    //     console.error(error);
+    // });
+    // req.end();    
     app.isQuitting = true;
 });

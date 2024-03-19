@@ -165,6 +165,8 @@ def read_server_settings():
         else:
             result["settings"]["LocalIP"] = local_ip
 
+        app_settings.localserver.server_settings = settings_dict
+
     except Exception as e:  # pylint: disable=broad-except
         result["status"] = "error"
         result["value"] = "Error processing settings file"

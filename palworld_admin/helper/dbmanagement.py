@@ -190,7 +190,7 @@ def commit_players_to_db(players: list) -> None:
     try:
         db.session.commit()
         logging.info("Committed %s players to the database.", len(players))
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         db.session.rollback()
         logging.error("Error committing players to the database: %s", str(e))
     finally:

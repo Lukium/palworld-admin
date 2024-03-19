@@ -13,6 +13,7 @@ def parse_arguments():
         "-mp",
         "--management-password",
         type=str,
+        default="",
         help="""Set the management password for the Server Manager.
 Must be at least 6 characters long.""",
     )
@@ -48,6 +49,23 @@ Must be at least 6 characters long.""",
         help="Migrate the database to the latest version.",
     )
 
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=8210,
+        help="Set the port for the webserver to listen on.",
+        action="store",
+    )
+
+    parser.add_argument(
+        "-ls",
+        "--launch-server",
+        action="store_true",
+        default=False,
+        help="Launch the server immediately.",
+    )
+
     args = parser.parse_args()
     if args.management_password:
         result["ManagementPassword"] = args.management_password
@@ -67,9 +85,14 @@ Use the -mp flag to set the password."""
     else:
         result["Remote"] = "local"
 
+    if args.launch_server:
+        result["LaunchServer"] = True
+    else:
+        result["LaunchServer"] = False
     result["MigrateDatabase"] = args.migrate_database
     result["NoUserInterface"] = args.no_user_interface
     result["NoConsole"] = args.no_console
+    result["Port"] = args.port
     return result
 
 

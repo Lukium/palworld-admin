@@ -14,7 +14,8 @@ from flask import Flask
 from flask_migrate import Migrate, upgrade
 
 from palworld_admin.classes.dbmodels import db
-from palworld_admin.settings import app_settings
+
+# from palworld_admin.settings import app_settings
 
 
 def get_long_path_name(short_path):
@@ -38,43 +39,24 @@ def get_long_path_name(short_path):
     return buffer[:result_size]
 
 
-def create_app():
-    """Create a Flask app with the database URI set."""
-    app = Flask(__name__)
-    # Example configuration, adjust as necessary
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
-    )
-    db.init_app(app)
-    Migrate(app, db)
-    return app
-
-
-def apply_migrations():
+def apply_migrations(exe_path: str = None):
     """Apply any outstanding Alembic migrations."""
     app = Flask(__name__)
     app.secret_key = uuid.uuid4().hex
     app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f'sqlite:///{os.path.join(app_settings.exe_path,"palworld-admin.db")}'
+        f'sqlite:///{os.path.join(exe_path,"palworld-admin.db")}'
     )
 
-    if not os.path.exists(
-        os.path.join(app_settings.exe_path, "palworld-admin.db")
-    ):
+    if not os.path.exists(os.path.join(exe_path, "palworld-admin.db")):
         logging.error("Database file not found.")
         sys.exit(1)
 
     db.init_app(app)
 
     migrations_directory = "migrations"  # Default migrations directory path
-    if app_settings.pyinstaller_mode:
-        migrations_directory = os.path.join(
-            app_settings.meipass, migrations_directory
-        )
-    else:
-        migrations_directory = pkg_resources.resource_filename(
-            "palworld_admin", migrations_directory
-        )
+    migrations_directory = pkg_resources.resource_filename(
+        "palworld_admin", migrations_directory
+    )
 
     # Check if any shortening of the path took place
     if "~" in migrations_directory:

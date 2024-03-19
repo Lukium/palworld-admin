@@ -70,6 +70,7 @@ VOLUME ["/home/lukium/palworld-admin", "/home/lukium/.wine/drive_c/steamcmd"]
 
 # Setup Environment Variables
 ENV MANAGEMENT_PASSWORD="palworld-admin-123"
+ENV MANAGEMENT_PORT="8210"
 
 # Use the custom entrypoint script as 'lukium'
 ENTRYPOINT ["/home/lukium/entrypoint.sh"]

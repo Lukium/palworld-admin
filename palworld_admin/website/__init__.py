@@ -11,8 +11,8 @@ import uuid
 import shutil
 
 # Must be included for pyinstaller to work
-from engineio.async_drivers import eventlet  # pylint: disable=unused-import
-import eventlet  # pylint: disable=unused-import disable=reimported
+# from engineio.async_drivers import eventlet  # pylint: disable=unused-import
+# import eventlet  # pylint: disable=unused-import disable=reimported
 
 from flask_socketio import SocketIO
 
@@ -224,6 +224,13 @@ def flask_app():
         app_settings.localserver.launcher_args = get_stored_default_settings(
             "LauncherSettings"
         )
+        app_settings.localserver.rcon_last_connection_args = (
+            get_stored_default_settings("Connection")
+        )
+        logging.info(
+            "Last RCON Connection: %s",
+            app_settings.localserver.rcon_last_connection_args,
+        )
         alembic_version = get_alembic_version()
 
     if alembic_version:
@@ -370,12 +377,12 @@ def flask_app():
         return jsonify(result)
 
     # Route for shutting down the server
-    @app.route("/shutdown", methods=["POST"])
-    def shutdown():
-        logging.info("Shutting down the server...")
-        app_settings.shutdown_requested = True
+    # @app.route("/shutdown", methods=["POST"])
+    # def shutdown():
+    #     logging.info("Shutting down the server...")
+    #     app_settings.shutdown_requested = True
 
-        return "Server shutting down..."
+    #     return "Server shutting down..."
 
     if app_settings.localserver.management_mode == "remote":
 
@@ -418,9 +425,9 @@ def flask_app():
     # Route for serving the resources directory
     @app.route("/resources/<path:filename>")
     def custom_static(filename):
-        if app_settings.pyinstaller_mode:
-            directory = os.path.join(app_settings.meipass, "resources")
-            return send_from_directory(directory, filename)
+        # if app_settings.pyinstaller_mode:
+        #     directory = os.path.join(app_settings.meipass, "resources")
+        #     return send_from_directory(directory, filename)
         return send_from_directory("resources", filename)
 
     @app.route("/generate_sav", methods=["POST"])
@@ -741,7 +748,7 @@ def flask_app():
                     "palguard_commands"
                 ]
 
-            logging.info("Reply: %s", reply)
+            # logging.info("Reply: %s", reply)
             return reply
 
         return process_frontend_command(func, data)
@@ -948,7 +955,7 @@ def flask_app():
     def start_server_socket(data):
         def func(data):
             result = run_server(launcher_args=data)
-            # logging.info("Launch Server Result: %s", result)
+            logging.info("Launch Server Result: %s", result)
 
             message = result["message"]
             reply = {
@@ -1433,14 +1440,34 @@ def flask_app():
             # Use socketio.sleep for proper thread management
             socketio.sleep(0.5)
 
+    if (
+        app_settings.cli_launch_server
+        and app_settings.localserver.palserver_installed
+        and app_settings.localserver.launcher_args is not {}
+        and app_settings.localserver.rcon_last_connection_args is not {}
+    ):
+
+        def task__launch_server_from_cli():
+            """Launch the server from the CLI."""
+            socketio.sleep(5)
+            with app.app_context():
+                launcher_args = app_settings.localserver.launcher_args
+                launcher_args["rcon_port"] = (
+                    app_settings.localserver.rcon_last_connection_args["port"]
+                )
+                launcher_args["public_port"] = (
+                    app_settings.localserver.server_settings["PublicPort"]
+                )
+                start_server_socket(launcher_args)
+
+        # Start the server from the CLI
+        socketio.start_background_task(task__launch_server_from_cli)
+
     # Start the server monitor in the background
     socketio.start_background_task(server_minitor_task)
 
     # Set socketIO to use the Flask app
-
-    if app_settings.dev:
-        socketio.run(app, host="0.0.0.0", port=8210, debug=False)
-    else:
-        socketio.run(app, host="0.0.0.0", port=8210, debug=False)
+    logging.info("Launching application on port %s", app_settings.app_port)
+    socketio.run(app, host="0.0.0.0", port=app_settings.app_port, debug=False)
 
     return app

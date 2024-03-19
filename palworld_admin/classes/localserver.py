@@ -26,6 +26,7 @@ class LocalServer:
         self.all_players: list = []
 
         # RCON Variables
+        self.rcon_last_connection_args: dict = {}
         self.base64_encoded: bool = False
         self.connected: bool = False
         self.launch_rcon_on_startup: bool = False
@@ -48,6 +49,7 @@ class LocalServer:
         self.server_monitoring_interval = 5
         self.player_commit_to_db_interval = 60
         self.launcher_args: dict = {}
+        self.server_settings: dict = {}
 
         # Backup Variables
         self.backup_path = ""

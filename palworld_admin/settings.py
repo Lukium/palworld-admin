@@ -12,7 +12,12 @@ from threading import Thread
 
 # from palworld_admin.helper.cli import parse_cli
 from palworld_admin.classes import PalWorldSettings, LocalServer, MemoryStorage
+from palworld_admin.helper.cli import parse_cli
+from palworld_admin.helper.consolemanagement import (
+    hide_console,
+)  # pylint: disable=wrong-import-position
 from palworld_admin.helper.oscommands import detect_virtual_machine
+from palworld_admin.helper.dbmigration import apply_migrations
 
 # from palworld_admin.ui import BrowserManager
 
@@ -67,17 +72,27 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.9.8"
+        self.version: str = "0.9.9"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.9.8"
+        self.supporter_version: str = "0.9.9"
+        self.migration_mode: bool = False
         self.alembic_version: str = "59a004fd30a9"
         self.exe_path: str = ""
         self.app_os = ""
+        self.app_port: int = 8210
         self.main_ui = None
         self.ready = False
         self.force_error = False
         self.meipass = None
         self.steam_openid_url = "https://steamcommunity.com/openid"
+
+        self.cli_launch_server: bool = False
+        self.cli_management_password: str = ""
+        self.cli_migrate_database: bool = False
+        self.cli_no_console: bool = False
+        self.cli_no_ui: bool = False
+        self.cli_port: int = 8210
+        self.cli_remote: bool = False
 
         self.palworldsettings_defaults = PalWorldSettings()
         self.localserver = LocalServer()
@@ -93,21 +108,23 @@ class Settings:
 
         self.pyinstaller_mode: bool = False
 
-        self.shutdown_requested = False
+        # self.shutdown_requested = False
 
         self.current_client: str = ""
 
         self.set_logging()
-        self.set_pyinstaller_mode()
+        # self.set_pyinstaller_mode()
         self.set_app_os()
         self.detect_virtual_machine()
         self.detect_cpu_cores()
         self.set_local_server_paths()
+        self._parse_cli()
         self.check_for_palguard()
         self.download_ui()
         self.launch_ui()
         self.monitor_shutdown()
-        self.ready = True
+        self.settings_ready = True
+        self.app_ready = False
 
     def set_logging(self):
         """Set the logging configuration."""
@@ -122,22 +139,22 @@ class Settings:
                 format="%(asctime)s - %(levelname)s - %(message)s",
             )
 
-    def set_pyinstaller_mode(self):
-        """Set the pyinstaller mode based on the current environment."""
-        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            self.pyinstaller_mode = True
-            self.meipass = sys._MEIPASS  # pylint: disable=protected-access
-            logging.info("MEIPASS: %s", self.meipass)
-        else:
-            self.pyinstaller_mode = False
-        logging.info("Pyinstaller mode: %s", self.pyinstaller_mode)
+    # def set_pyinstaller_mode(self):
+    #     """Set the pyinstaller mode based on the current environment."""
+    #     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    #         self.pyinstaller_mode = True
+    #         self.meipass = sys._MEIPASS  # pylint: disable=protected-access
+    #         logging.info("MEIPASS: %s", self.meipass)
+    #     else:
+    #         self.pyinstaller_mode = False
+    #     logging.info("Pyinstaller mode: %s", self.pyinstaller_mode)
 
     def set_local_server_paths(self):
         """Set the paths for the local server based on the current environment."""
-        if self.pyinstaller_mode:
-            exe_path = os.path.dirname(sys.executable)
-        else:
-            exe_path = os.getcwd()
+        # if self.pyinstaller_mode:
+        #     exe_path = os.path.dirname(sys.executable)
+        # else:
+        exe_path = os.getcwd()
         self.exe_path = exe_path
         windows_or_linux = (
             "Windows"
@@ -372,6 +389,8 @@ class Settings:
 
     def download_ui(self):
         """Download the UI files if necessary."""
+        if self.migration_mode or self.cli_no_ui or self.no_ui:
+            return
         if not self.dev:
             self.memorystorage.download_static_files()
             self.memorystorage.download_templates()
@@ -408,32 +427,70 @@ class Settings:
         self.localserver.cpu_cores = multiprocessing.cpu_count()
         logging.info("CPU cores: %s", self.localserver.cpu_cores)
 
+    def _parse_cli(self):
+        """Parse CLI arguments."""
+        args = parse_cli()
+
+        self.cli_launch_server = args["LaunchServer"]
+        self.cli_port = args["Port"]
+        self.cli_no_ui = args["NoUserInterface"]
+        self.cli_no_console = args["NoConsole"]
+        self.cli_migrate_database = args["MigrateDatabase"]
+        self.cli_remote = args["Remote"]
+        self.cli_management_password = args["ManagementPassword"]
+
+        self.app_port = args["Port"]
+        self.set_management_mode(self.cli_remote)
+        self.set_management_password(self.cli_management_password)
+
+        try:
+            if (
+                app_settings.app_os != "Windows"
+                and app_settings.cli_remote != "remote"
+            ):
+                raise ValueError(
+                    "\nNon-Windows operating system requires -r and -mp flags. See -h\n"
+                )
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+
+        if self.cli_migrate_database:
+            self.migration_mode = True
+            apply_migrations(self.exe_path)
+            sys.exit(0)
+
+        if app_settings.cli_no_console:
+            hide_console()
+
     def launch_ui(self):
         """Launch the main UI."""
         # If the app is being built for pip, then don't launch the UI
-        if self.no_ui:
+        if self.migration_mode or self.cli_no_ui or self.no_ui:
             return
         if self.app_os == "Windows":
             try:
-                if self.pyinstaller_mode:
-                    ui_path = os.path.join(
-                        self.meipass,
-                        "ui",
-                        "palworld-admin-ui.exe",
-                    )
-                else:
-                    ui_path = os.path.join(
-                        self.exe_path,
-                        "ui",
-                        "palworld-admin-ui-win32-x64",
-                        "palworld-admin-ui.exe",
-                    )
+                # if self.pyinstaller_mode:
+                #     ui_path = os.path.join(
+                #         self.meipass,
+                #         "ui",
+                #         "palworld-admin-ui.exe",
+                #     )
+                # else:
+                ui_path = os.path.join(
+                    self.exe_path,
+                    "ui",
+                    "palworld-admin-ui-win32-x64",
+                    "palworld-admin-ui.exe",
+                )
 
                 if not os.path.exists(ui_path):
                     logging.info("UI not found, skipping launch.")
                 else:
                     logging.info("Launching UI: %s", ui_path)
-                    self.main_ui = subprocess.Popen(ui_path)
+                    self.main_ui = subprocess.Popen(
+                        [ui_path, f"--port={str(self.app_port)}"]
+                    )
                     logging.info("Launched UI.")
             except Exception as e:  # pylint: disable=broad-except
                 logging.error("Failed to launch UI: %s", e)
@@ -445,7 +502,13 @@ class Settings:
         """Monitor the shutdown status of the UI."""
 
         def monitor():
-            while not self.shutdown_requested:
+            # while not self.shutdown_requested:
+            #     time.sleep(1)
+            # Check if the UI is still running using poll
+            while True:
+                if self.main_ui.poll() is not None:
+                    logging.info("UI has closed.")
+                    break
                 time.sleep(1)
             logging.info("Shutdown requested, waiting 1 second.")
             time.sleep(1)  # Wait for the UI to close

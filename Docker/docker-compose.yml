@@ -6,8 +6,9 @@ services:
     restart: unless-stopped
     environment:
       MANAGEMENT_PASSWORD: ${MANAGEMENT_PASSWORD}
+      MANAGEMENT_PORT: ${MANAGEMENT_PORT}
     ports:
-      - '${ADMIN_PORT}:8210'
+      - '${MANAGEMENT_PORT}:${MANAGEMENT_PORT}/tcp'
       - '${GAME_PORT}:${GAME_PORT}/udp'
       - '${GAME_PORT}:${GAME_PORT}/tcp'
       - '${QUERY_PORT}:${QUERY_PORT}/udp'
@@ -22,7 +23,7 @@ services:
 # CONTAINER_NAME=Palworld Server
 # CONTAINER_VERSION=latest
 # MANAGEMENT_PASSWORD=changeme
-# ADMIN_PORT=8210
+# MANAGEMENT_PORT=8210
 # GAME_PORT=8211
 # RCON_PORT=25575
 # QUERY_PORT=27015

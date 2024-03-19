@@ -51,7 +51,8 @@ fi
 
 # Read the environment variable for management-password
 MANAGEMENT_PASSWORD="${MANAGEMENT_PASSWORD}"
+MANAGEMENT_PORT="${MANAGEMENT_PORT}"
 
 # Run the application
 "$PALWORLD_DIR/palworld-admin-linux" -mdb
-exec "$PALWORLD_DIR/palworld-admin-linux" -r -mp "$MANAGEMENT_PASSWORD"
+exec "$PALWORLD_DIR/palworld-admin-linux" -ls -r -mp "$MANAGEMENT_PASSWORD" -p "$MANAGEMENT_PORT"
