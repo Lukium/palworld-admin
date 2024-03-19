@@ -444,10 +444,7 @@ class Settings:
         self.set_management_password(self.cli_management_password)
 
         try:
-            if (
-                app_settings.app_os != "Windows"
-                and app_settings.cli_remote != "remote"
-            ):
+            if self.app_os != "Windows" and self.cli_remote != "remote":
                 raise ValueError(
                     "\nNon-Windows operating system requires -r and -mp flags. See -h\n"
                 )
@@ -460,7 +457,7 @@ class Settings:
             apply_migrations(self.exe_path)
             sys.exit(0)
 
-        if app_settings.cli_no_console:
+        if self.cli_no_console:
             hide_console()
 
     def launch_ui(self):
