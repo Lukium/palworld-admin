@@ -534,7 +534,7 @@ def flask_app():
     @oid.loginhandler
     def steam_auth():
         # Get the IP address of the user connecting
-        client_ip = request.remote_addr
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         session["client_ip"] = client_ip
         return oid.try_login(
             app_settings.steam_openid_url, ask_for=["nickname"]
