@@ -72,7 +72,8 @@ Simply run (if using Docker, or use any alternative you like such as Docker Comp
 ```bash
 docker run \
 	-e MANAGEMENT_PASSWORD="[management-password]" \
-	-p [desired palworld-admin port]:8210/tcp \
+	-e MANAGEMENT_PORT=[management-port] \
+	-p [desired management-port]:[management-port]/tcp \
 	-p [desired game port]:[desired game port]/udp \
 	-p [desired RCON port]:[desired RCON port]/tcp \
 	-p [desired query port]:[desired query port]/udp \
@@ -81,6 +82,7 @@ docker run \
 	--name [desired container name] \
 	lukium/palworld-admin-wine:latest
 ```
+If running on windows Docker Desktop, do not use -v as mounting the volumes directly will break things and run the entire command as one line. The palworld-admin and dedicated server files will be mounted to \\wsl.localhost\docker-desktop-data\data\docker\volumes as directories with random string (once you identify which is which, you can create a shortcut to them wherever you like)
 Docker Compose:
 ```yaml
 # docker-compose.yml
