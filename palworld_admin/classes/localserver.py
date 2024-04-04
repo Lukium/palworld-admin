@@ -11,6 +11,7 @@ class LocalServer:
         self.management_mode = ""
         self.management_password = ""
         self.steamcmd_path = ""
+        self.main_path = ""
         self.launcher_path = ""
         self.binaries_path = ""
         self.ini_path = ""
@@ -35,6 +36,7 @@ class LocalServer:
         self.ip: str = ""
         self.port: int = 0
         self.password: str = ""
+        self.rcon_player_count: int = 0
 
         ##### Server Manager Variables #####
         self.steamcmd_installed: bool = False
@@ -61,7 +63,8 @@ class LocalServer:
 
         # Usage Variables
         self.cpu_cores = 0
-        self.use_get_counters: bool = True
+        self.use_get_counters: bool = False
+        self.counters_instance_name: str = ""
         self.get_counters_succeeded: bool = False
         self.is_virtual_machine: bool = False
         self.last_cpu_check: datetime.datetime = None
@@ -78,3 +81,14 @@ class LocalServer:
         # Steam Authentification Variables
         self.steam_auth: bool = False
         self.enforce_steam_auth_ip: bool = False
+
+        # Discord Bot Variables
+        self.discord_bot_enabled: bool = False
+        self.discord_bot_token: str = ""
+        self.discord_bot_server_id: str = ""
+        self.discord_bot_channel_id: str = ""
+        self.discord_bot_admin_role_id: str = ""
+        self.discord_bot_rcon_role_id: str = ""
+        self.discord_bot_rcon_enabled: bool = False
+        self.discord_bot_joins_enabled: bool = False
+        self.discord_bot_leaves_enabled: bool = False

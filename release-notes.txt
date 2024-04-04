@@ -1,5 +1,19 @@
 Release Notes
 
+v0.10.0
+## New:
+- Discord Initial Integration - Full, Built-In, Self Hosted Bot (Options under the new Palworld Admin Settings)
+- Native Windows Multi-Instance - Palworld Admin should only detect its own instance of the Dedicated Server now, allowing you to create a copy of Palworld Admin in another directory if you want to run multiple instances (Beware of Palworld Dedicated Server being a resource hog)
+- Tentative Fix for 0.2.0.6 Server breaking changes (Change of .exe name and missing steam files in Win64 directory)
+- Added palworld-admin.log - now everything that goes into the console automatically goes into the log file as well to make debugging easier
+
+## Improved:
+- Re-arranged UI:
+  - The Player List is now taller
+  - Palworld Dedicated Server launcher settings are in the Server Settings
+  - Palworld Admin Settings (Like Steam Authentication, Auto-Restart and Auto-Backup) are now in Palworld Admin Settings (Green Gear button)
+  - Server Manager is now accessible via /admin endpoint (Making way for Custom Server pages on root / ). So to access your server via browser, go to https://ip:port/admin
+
 v0.9.9
 
 ## New:

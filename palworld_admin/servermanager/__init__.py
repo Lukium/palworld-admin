@@ -393,6 +393,14 @@ def install_palserver():
     """Install PalServer."""
     result = {}
     if app_settings.app_os == "Windows":
+        files_to_copy = [
+            "steamclient.dll",
+            "steamclient64.dll",
+            "tier0_s.dll",
+            "tier0_s64.dll",
+            "vstdlib_s.dll",
+            "vstdlib_s64.dll",
+        ]
         try:
             logging.info("Installing PalServer")
             subprocess.run(
@@ -403,6 +411,13 @@ def install_palserver():
                 ],
                 check=True,
             )
+            # Copy files_to_copy from app_settings.localserver.main_path to the binaries directory
+            for file in files_to_copy:
+                shutil.copy(
+                    os.path.join(app_settings.localserver.main_path, file),
+                    app_settings.localserver.binaries_path,
+                )
+
             result["status"] = "success"
             result["message"] = "PalServer installed successfully"
             logging.info("PalServer installed successfully")
@@ -513,10 +528,13 @@ def identify_process_by_name():
     app_settings.localserver.pid = None
     attempts = 0
     max_attempts = 5
+    log = False
     if not app_settings.localserver.expected_to_be_running:
         max_attempts = 1
     if app_settings.app_os == "Windows":
-        find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.Name -eq '{app_settings.localserver.executable}' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
+        # find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.ProcessName -like '*{app_settings.localserver.executable}*' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
+        find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.ProcessName -like '*{app_settings.localserver.executable}*' }} | ForEach-Object {{ $path = (Get-Item $_.MainModule.FileName).DirectoryName; $_ | Select-Object Id, @{{Name='DirectoryPath'; Expression={{$path}}}} }} \""  # pylint: disable=line-too-long
+
         while not app_settings.localserver.pid:
             try:
                 # Find processes
@@ -528,17 +546,67 @@ def identify_process_by_name():
                     text=True,
                 )
                 if process.stdout:
-                    # Extract process IDs
-                    pids = re.findall(
-                        r"^\s*(\d+)", process.stdout, re.MULTILINE
+                    matched_pid = None
+                    find_result = process.stdout
+                    own_path = os.path.join(
+                        os.getcwd(), app_settings.localserver.binaries_path
                     )
-                    if len(pids) > 0:
-                        pid = pids[0]
-                        app_settings.localserver.pid = pid
+                    # Replace forward slashes with backslashes
+                    own_path = own_path.replace("/", "\\")
+
+                    # Drop lines in find_result that don't contain the own_path
+                    matched_result = "\n".join(
+                        [
+                            line
+                            for line in find_result.split("\n")
+                            if own_path in line
+                        ]
+                    )
+
+                    # If matched_result is not empty, extract the PID
+                    if matched_result:
+                        matched_pid = matched_result.strip().split(
+                            " ", maxsplit=1
+                        )[0]
+
+                    # find_instance = f'powershell "$TargetPID = {matched_pid}; $Process = Get-Process -Id $TargetPID; $ProcessName = $Process.ProcessName; $AllProcesses = Get-Counter "\Process($ProcessName*)\ID Process" -ErrorAction Stop; $MatchingInstance = $AllProcesses.CounterSamples | Where-Object {{ $_.CookedValue -eq $TargetPID }}; echo $MatchingInstance.InstanceName "'
+                    find_instance = f'powershell "$TargetPID = {matched_pid}; $Process = Get-Process -Id $TargetPID; $ProcessName = $Process.ProcessName; $AllProcesses = Get-Counter \\"\\Process($ProcessName*)\\ID Process\\" -ErrorAction Stop; $MatchingInstance = $AllProcesses.CounterSamples | Where-Object {{ $_.CookedValue -eq $TargetPID }}; echo $MatchingInstance.InstanceName"'
+                    #    "'
+                    isntance_process = subprocess.run(
+                        find_instance,
+                        check=True,
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    )
+
+                    if isntance_process.stdout:
+                        instance_result = isntance_process.stdout.strip()
+                        app_settings.localserver.counters_instance_name = (
+                            instance_result
+                        )
+
+                    if log:
+                        logging.info("Process found: %s", process.stdout)
+                        logging.info(
+                            "Own Path: %s",
+                            own_path,
+                        )
+                        logging.info("Matched Result: %s", matched_result)
+                        logging.info("Matched PID: %s", matched_pid)
+                        logging.info("Instance Result: %s", instance_result)
+                    # Extract process IDs
+                    # pids = re.findall(
+                    #     r"^\s*(\d+)", process.stdout, re.MULTILINE
+                    # )
+                    # if len(pids) > 0:
+                    #     pid = pids[0]
+                    if matched_pid:
+                        app_settings.localserver.pid = matched_pid
                         app_settings.localserver.running = True
                         result["status"] = "success"
-                        result["value"] = pid
-                        logging.info("Server Process ID: %s", pid)
+                        result["value"] = matched_pid
+                        logging.info("Server Process ID: %s", matched_pid)
                         return result
                     else:
                         result["status"] = "success"
@@ -547,10 +615,10 @@ def identify_process_by_name():
                         app_settings.localserver.pid = None
                         logging.info("No matching processes found.")
             except subprocess.CalledProcessError as e:
-                info = f"Failed to execute find command: {e}"
-                logging.error(info)
+                info = f"Process not found: {e}"
+                logging.error("Error finding process: %s", info)
                 result["status"] = "error"
-                result["value"] = f"Failed to execute find command: {e}"
+                result["value"] = f"Process not found: {e}"
             attempts += 1
             if attempts > max_attempts:
                 result["status"] = "error"
@@ -602,7 +670,7 @@ def identify_process_by_name():
 def run_server(launcher_args: dict = None):
     """Run the server."""
     result = {}
-    log = True
+    log = False
 
     # Check if the server is already running
     if app_settings.localserver.running:
@@ -631,11 +699,79 @@ def run_server(launcher_args: dict = None):
         "auto_restart_on_unexpected_shutdown"
     ]
     ram_restart_trigger = launcher_args["ram_restart_trigger"]
+
+    # Steam Authentication
     steam_auth = launcher_args["steam_auth"]
     enforce_steam_auth_ip = launcher_args["enforce_steam_auth_ip"]
-
     app_settings.localserver.steam_auth = steam_auth
     app_settings.localserver.enforce_steam_auth_ip = enforce_steam_auth_ip
+
+    # Discord Settings
+    discord_bot_enabled = (
+        launcher_args["discord_bot_enabled"]
+        if launcher_args["discord_bot_enabled"]
+        else None
+    )
+    discord_bot_token = (
+        launcher_args["discord_bot_token"]
+        if launcher_args["discord_bot_token"]
+        else None
+    )
+    discord_bot_server_id = (
+        launcher_args["discord_bot_server_id"]
+        if launcher_args["discord_bot_server_id"]
+        else None
+    )
+    discord_bot_channel_id = (
+        launcher_args["discord_bot_channel_id"]
+        if launcher_args["discord_bot_channel_id"]
+        else None
+    )
+    discord_bot_admin_role_id = (
+        launcher_args["discord_bot_admin_role_id"]
+        if launcher_args["discord_bot_admin_role_id"]
+        else None
+    )
+    discord_bot_rcon_role_id = (
+        launcher_args["discord_bot_rcon_role_id"]
+        if launcher_args["discord_bot_rcon_role_id"]
+        else None
+    )
+    discord_bot_rcon_enabled = (
+        launcher_args["discord_bot_rcon_enabled"]
+        if launcher_args["discord_bot_rcon_enabled"]
+        else None
+    )
+    discord_bot_joins_enabled = (
+        launcher_args["discord_bot_joins_enabled"]
+        if launcher_args["discord_bot_joins_enabled"]
+        else None
+    )
+    discord_bot_leaves_enabled = (
+        launcher_args["discord_bot_leaves_enabled"]
+        if launcher_args["discord_bot_leaves_enabled"]
+        else None
+    )
+
+    app_settings.localserver.discord_bot_enabled = discord_bot_enabled
+    app_settings.localserver.discord_bot_token = discord_bot_token
+    app_settings.localserver.discord_bot_server_id = discord_bot_server_id
+    app_settings.localserver.discord_bot_channel_id = discord_bot_channel_id
+    app_settings.localserver.discord_bot_admin_role_id = (
+        discord_bot_admin_role_id
+    )
+    app_settings.localserver.discord_bot_rcon_role_id = (
+        discord_bot_rcon_role_id
+    )
+    app_settings.localserver.discord_bot_rcon_enabled = (
+        discord_bot_rcon_enabled
+    )
+    app_settings.localserver.discord_bot_joins_enabled = (
+        discord_bot_joins_enabled
+    )
+    app_settings.localserver.discord_bot_leaves_enabled = (
+        discord_bot_leaves_enabled
+    )
 
     # Construct the command with necessary parameters and flags
     cmd = f'"{app_settings.localserver.launcher_path}"{" -publiclobby" if publiclobby else ""}{f" -port={public_port}"}{f" -RCONPort={rcon_port}"}{f" -queryport={query_port}"}{" -useperfthreads" if useperfthreads else ""}{" -NoAsyncLoadingThread" if noasyncloadingthread else ""}{" -UseMultithreadForDS" if usemultithreadfords else ""}'  # pylint: disable=line-too-long
@@ -679,7 +815,7 @@ def run_server(launcher_args: dict = None):
             "Palguard installed: %s",
             app_settings.localserver.palguard_installed,
         )
-        app_settings.localserver.running = True
+        # app_settings.localserver.running = True
     except Exception as e:  # pylint: disable=broad-except
         if log:
             logging.error("Error starting server: %s", e)
@@ -798,9 +934,9 @@ def check_server_running() -> dict:
 
     if app_settings.app_os == "Windows":
         if app_settings.localserver.use_get_counters:
-            find_cmd = f'$PN = "{app_settings.localserver.executable}"; $CounterPaths = @("\\Process($PN)\\% Processor Time","\\Process($PN)\\Working Set - Private"); Get-Counter -Counter $CounterPaths | ForEach-Object {{ $cpuTime = [Math]::Round($_.CounterSamples[0].CookedValue , 2); $ramUsage = $_.CounterSamples[1].CookedValue; "$cpuTime $ramUsage" }}'  # pylint: disable=line-too-long
+            find_cmd = f'$TargetInstance = "{app_settings.localserver.counters_instance_name}"; $CounterPaths = @("\\Process($TargetInstance)\\% Processor Time","\\Process($TargetInstance)\\Working Set - Private"); Get-Counter -Counter $CounterPaths | ForEach-Object {{ $cpuTime = [Math]::Round($_.CounterSamples[0].CookedValue , 2); $ramUsage = $_.CounterSamples[1].CookedValue; "$cpuTime $ramUsage" }}'  # pylint: disable=line-too-long
         else:
-            find_cmd = f'$PN = "{app_settings.localserver.executable}"; Get-CimInstance Win32_PerfFormattedData_PerfProc_Process | Where-Object {{ $_.Name -eq $PN }} | Select-Object -Property Name, PercentProcessorTime, WorkingSet -First 1 | ForEach-Object {{ $cpuUsage = $_.PercentProcessorTime; $workingSetSize = $_.WorkingSet; "$cpuUsage $workingSetSize" }}'  # pylint: disable=line-too-long
+            find_cmd = f'$TargetPID = "{app_settings.localserver.pid}"; Get-CimInstance Win32_PerfFormattedData_PerfProc_Process | Where-Object {{ $_.IDProcess -eq $TargetPID }} | Select-Object -Property Name, PercentProcessorTime, WorkingSet -First 1 | ForEach-Object {{ $cpuUsage = $_.PercentProcessorTime; $workingSetSize = $_.WorkingSet; "$cpuUsage $workingSetSize" }}'  # pylint: disable=line-too-long
 
         if log:
             logging.info("CMD: %s", find_cmd)
@@ -1182,6 +1318,15 @@ def first_run():
         "ram_restart_trigger": "0",
         "steam_auth": False,
         "enforce_steam_auth_ip": False,
+        "discord_bot_enabled": False,
+        "discord_bot_token": "",
+        "discord_bot_server_id": "",
+        "discord_bot_channel_id": "",
+        "discord_bot_admin_role_id": "",
+        "discord_bot_rcon_role_id": "",
+        "discord_bot_rcon_enabled": False,
+        "discord_bot_joins_enabled": False,
+        "discord_bot_leaves_enabled": False,
     }
     run_server(launcher_args)
     time.sleep(3)

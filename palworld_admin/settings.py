@@ -11,7 +11,12 @@ import time
 from threading import Thread
 
 # from palworld_admin.helper.cli import parse_cli
-from palworld_admin.classes import PalWorldSettings, LocalServer, MemoryStorage
+from palworld_admin.classes import (
+    PalWorldSettings,
+    LocalServer,
+    MemoryStorage,
+    DiscordClient,
+)
 from palworld_admin.helper.cli import parse_cli
 from palworld_admin.helper.consolemanagement import (
     hide_console,
@@ -22,8 +27,15 @@ from palworld_admin.helper.dbmigration import apply_migrations
 # from palworld_admin.ui import BrowserManager
 
 # Get the waitress logger
-logger = logging.getLogger("waitress")
-logger.setLevel(logging.ERROR)  # Only show errors and above
+logging.basicConfig(level=logging.INFO)
+file_handler = logging.FileHandler("palworld-admin.log")
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+file_handler.setFormatter(formatter)
+root_logger = logging.getLogger()
+root_logger.addHandler(file_handler)
 
 WINDOWS_STEAMCMD_PATH = "steamcmd/steamcmd.exe"
 LINUX_STEAMCMD_PATH = "/usr/games/steamcmd"
@@ -35,8 +47,8 @@ LINUX_BASE_LAUNCHER_PATH = ".steam/steam/steamapps/common/PalServer/"
 WINDOWS_LAUNCHER_FILE = "PalServer.exe"
 LINUX_LAUNCHER_FILE = "PalServer.sh"
 
-WINDOWS_SERVER_EXECUTABLE = "PalServer-Win64-Test-Cmd"
-LINUX_SERVER_EXECUTABLE = "PalServer-Linux-Test"
+WINDOWS_SERVER_EXECUTABLE = "PalServer-Win64-Shipping-Cmd"
+LINUX_SERVER_EXECUTABLE = "PalServer-Linux-Shipping"
 
 PALWORLDSETTINGS_INI_BASE_PATH = "Pal/Saved/Config/"
 PALWORLDSETTINGS_INI_FILE = "PalWorldSettings.ini"
@@ -71,12 +83,12 @@ class Settings:
     def __init__(self):
         self.dev: bool = False
         self.dev_ui: bool = False
-        self.no_ui: bool = True
-        self.version: str = "0.9.9"
+        self.no_ui: bool = False
+        self.version: str = "0.10.0"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.9.9"
+        self.supporter_version: str = "0.10.0"
         self.migration_mode: bool = False
-        self.alembic_version: str = "59a004fd30a9"
+        self.alembic_version: str = "26ad9b14b180"
         self.exe_path: str = ""
         self.app_os = ""
         self.app_port: int = 8210
@@ -106,14 +118,11 @@ class Settings:
             STATIC_FILES,
         )
 
-        self.pyinstaller_mode: bool = False
-
-        # self.shutdown_requested = False
+        self.discord_bot: DiscordClient = None
 
         self.current_client: str = None
 
         self.set_logging()
-        # self.set_pyinstaller_mode()
         self.set_app_os()
         self.detect_virtual_machine()
         self.detect_cpu_cores()
@@ -125,6 +134,25 @@ class Settings:
         self.monitor_shutdown()
         self.settings_ready = True
         self.app_ready = False
+
+    def launch_discord_client(
+        self,
+        token: str,
+        server_id: str,
+        channel_id: str,
+        rcon_role_id: str,
+        admin_role_id: str,
+    ) -> DiscordClient:
+        """Launch the Discord client."""
+        discord_bot = DiscordClient(
+            token=token,
+            server_id=server_id,
+            channel_id=channel_id,
+            rcon_role_id=rcon_role_id,
+            admin_role_id=admin_role_id,
+        )
+        self.discord_bot = discord_bot
+        return discord_bot
 
     def set_logging(self):
         """Set the logging configuration."""
@@ -139,21 +167,9 @@ class Settings:
                 format="%(asctime)s - %(levelname)s - %(message)s",
             )
 
-    # def set_pyinstaller_mode(self):
-    #     """Set the pyinstaller mode based on the current environment."""
-    #     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    #         self.pyinstaller_mode = True
-    #         self.meipass = sys._MEIPASS  # pylint: disable=protected-access
-    #         logging.info("MEIPASS: %s", self.meipass)
-    #     else:
-    #         self.pyinstaller_mode = False
-    #     logging.info("Pyinstaller mode: %s", self.pyinstaller_mode)
-
     def set_local_server_paths(self):
         """Set the paths for the local server based on the current environment."""
-        # if self.pyinstaller_mode:
-        #     exe_path = os.path.dirname(sys.executable)
-        # else:
+
         exe_path = os.getcwd()
         self.exe_path = exe_path
         windows_or_linux = (
@@ -165,6 +181,11 @@ class Settings:
         if self.app_os == "Windows":
             # Set the base launcher path based on the operating system
             base_launcher_path = WINDOWS_BASE_LAUNCHER_PATH
+
+            # Set the main path for the server based on the operating system
+            self.localserver.main_path = os.path.join(
+                exe_path, base_launcher_path
+            )
 
             # Set the launcher path based on the operating system
             self.localserver.launcher_path = os.path.join(
@@ -205,6 +226,10 @@ class Settings:
             home_dir = os.environ["HOME"]
             base_launcher_path = os.path.join(
                 home_dir, LINUX_BASE_LAUNCHER_PATH
+            )
+
+            self.localserver.main_path = os.path.join(
+                home_dir, base_launcher_path
             )
 
             # Set the launcher path based on the operating system
@@ -440,11 +465,16 @@ class Settings:
         self.cli_management_password = args["ManagementPassword"]
 
         self.app_port = args["Port"]
+        logging.info("App port: %s", self.app_port)
         self.set_management_mode(self.cli_remote)
         self.set_management_password(self.cli_management_password)
 
         try:
-            if self.app_os != "Windows" and self.cli_remote != "remote":
+            if (
+                self.app_os != "Windows"
+                and self.cli_remote != "remote"
+                and not self.cli_migrate_database
+            ):
                 raise ValueError(
                     "\nNon-Windows operating system requires -r and -mp flags. See -h\n"
                 )
@@ -467,13 +497,6 @@ class Settings:
             return
         if self.app_os == "Windows":
             try:
-                # if self.pyinstaller_mode:
-                #     ui_path = os.path.join(
-                #         self.meipass,
-                #         "ui",
-                #         "palworld-admin-ui.exe",
-                #     )
-                # else:
                 ui_path = os.path.join(
                     self.exe_path,
                     "ui",

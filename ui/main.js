@@ -51,6 +51,53 @@ async function checkZoom() {
     }
 }
 
+function attemptLoadURL(mainWindow, url) {
+    const http = require('http');
+    const urlModule = require('url'); // Node.js URL module for parsing URLs
+
+    const checkAndLoad = (res) => {
+        if (res.statusCode === 200) {
+            // Server responds with OK, load the URL in the mainWindow
+            mainWindow.loadURL(url);
+        } else if (res.statusCode === 302 || res.statusCode === 301) {
+            // Handle redirect
+            // create protocol from url variable
+            const protocol = urlModule.parse(url).protocol;
+            // create host from url variable
+            const host = urlModule.parse(url).host;
+            // get the location header from the response
+            const location = res.headers.location;
+            // create full redirect URL
+            const fullRedirectURL = `${protocol}//${host}${location}`;
+            
+            console.log(`Redirecting to: ${fullRedirectURL}`); // For debugging
+
+            // Parse the redirect location URL
+            const parsedLocation = urlModule.parse(location, true); // 'true' to parse query string
+            // Check if the redirect URL path matches /login and has expected query parameters
+            if (parsedLocation.pathname === '/login' && parsedLocation.query.next && parsedLocation.query.management_mode === 'remote') {
+                // Further validate the 'next' parameter or proceed to load
+                mainWindow.loadURL(fullRedirectURL); // Redirect to the login page
+            } else {
+                console.error('Unexpected or invalid redirect location:', location);
+                setTimeout(() => attemptLoadURL(mainWindow, url), 1000);
+            }
+        } else {
+            // Server response is not successful or not a recognized redirect, retry after 1 second
+            console.error(`Server responded with status code: ${res.statusCode}`);
+            setTimeout(() => attemptLoadURL(mainWindow, url), 1000);
+        }
+    };
+
+    http.get(url, (res) => {
+        checkAndLoad(res);
+    }).on('error', (e) => {
+        // There is an error (server is not up), retry after 1 second
+        console.error(`Got error: ${e.message}`);
+        setTimeout(() => attemptLoadURL(mainWindow, url), 1000);
+    });
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 900,
@@ -73,7 +120,12 @@ function createWindow() {
     const portArgIndex = process.argv.findIndex(arg => arg.startsWith('--port='));
     const port = portArgIndex !== -1 ? process.argv[portArgIndex].split('=')[1] : 8210;
 
-    mainWindow.loadURL(`http://localhost:${port}`);
+    const url = `http://127.0.0.1:${port}/admin`;
+
+    // Instead of directly loading the URL, use the attemptLoadURL function
+    attemptLoadURL(mainWindow, url);
+
+    // mainWindow.loadURL(`http://127.0.0.1:${port}`);
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();

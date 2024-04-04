@@ -49,9 +49,8 @@ else
     echo "Already at the latest version: $CURRENT_VERSION"
 fi
 
-# Read the environment variable for management-password
-MANAGEMENT_PASSWORD="${MANAGEMENT_PASSWORD}"
-MANAGEMENT_PORT="${MANAGEMENT_PORT}"
+# Echo the MANAGEMENT_PASSWORD and MANAGEMENT_PORT before running the application
+echo "Launching Palworld Admin with MANAGEMENT_PASSWORD: $MANAGEMENT_PASSWORD and MANAGEMENT_PORT: $MANAGEMENT_PORT"
 
 # Run the application
 "$PALWORLD_DIR/palworld-admin-linux" -mdb

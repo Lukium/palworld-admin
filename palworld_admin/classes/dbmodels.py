@@ -48,6 +48,15 @@ class LauncherSettings(db.Model):
     auto_restart_triggers = db.Column(db.Boolean, default=True)
     auto_restart_on_unexpected_shutdown = db.Column(db.Boolean, default=True)
     ram_restart_trigger = db.Column(db.Float, default=0.0)
+    discord_bot_enabled = db.Column(db.Boolean, default=False)
+    discord_bot_token = db.Column(db.String(255))
+    discord_bot_server_id = db.Column(db.String(255))
+    discord_bot_channel_id = db.Column(db.String(255))
+    discord_bot_admin_role_id = db.Column(db.String(255))
+    discord_bot_rcon_role_id = db.Column(db.String(255))
+    discord_bot_rcon_enabled = db.Column(db.Boolean, default=False)
+    discord_bot_joins_enabled = db.Column(db.Boolean, default=False)
+    discord_bot_leaves_enabled = db.Column(db.Boolean, default=False)
 
 
 class RconSettings(db.Model):
