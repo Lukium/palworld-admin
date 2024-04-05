@@ -599,63 +599,6 @@ def flask_app():
     socketio = SocketIO(app, async_mode="eventlet")
     app_settings.localserver.socket = socketio
 
-    logging.info(
-        "Discord Bot Enabled: %s", app_settings.localserver.discord_bot_enabled
-    )
-
-    discord_bot: DiscordClient = None
-
-    logging.info(
-        "Discord Bot Launcher Args: %s", app_settings.localserver.launcher_args
-    )
-
-    launcher_args = app_settings.localserver.launcher_args
-    if launcher_args["discord_bot_enabled"] is not None:
-        app_settings.localserver.discord_bot_enabled = launcher_args[
-            "discord_bot_enabled"
-        ]
-    if launcher_args["discord_bot_token"] is not None:
-        app_settings.localserver.discord_bot_token = launcher_args[
-            "discord_bot_token"
-        ]
-    if launcher_args["discord_bot_server_id"] is not None:
-        app_settings.localserver.discord_bot_server_id = int(
-            launcher_args["discord_bot_server_id"]
-        )
-    if launcher_args["discord_bot_channel_id"] is not None:
-        app_settings.localserver.discord_bot_channel_id = int(
-            launcher_args["discord_bot_channel_id"]
-        )
-    if launcher_args["discord_bot_admin_role_id"] is not None:
-        app_settings.localserver.discord_bot_admin_role_id = int(
-            launcher_args["discord_bot_admin_role_id"]
-        )
-    if launcher_args["discord_bot_rcon_role_id"] is not None:
-        app_settings.localserver.discord_bot_rcon_role_id = int(
-            launcher_args["discord_bot_rcon_role_id"]
-        )
-    if launcher_args["discord_bot_rcon_enabled"] is not None:
-        app_settings.localserver.discord_bot_rcon_enabled = launcher_args[
-            "discord_bot_rcon_enabled"
-        ]
-    if launcher_args["discord_bot_joins_enabled"] is not None:
-        app_settings.localserver.discord_bot_joins_enabled = launcher_args[
-            "discord_bot_joins_enabled"
-        ]
-    if launcher_args["discord_bot_leaves_enabled"] is not None:
-        app_settings.localserver.discord_bot_leaves_enabled = launcher_args[
-            "discord_bot_leaves_enabled"
-        ]
-
-    if app_settings.localserver.discord_bot_enabled:
-        discord_bot = app_settings.launch_discord_client(
-            token=app_settings.localserver.discord_bot_token,
-            server_id=app_settings.localserver.discord_bot_server_id,
-            channel_id=app_settings.localserver.discord_bot_channel_id,
-            rcon_role_id=app_settings.localserver.discord_bot_rcon_role_id,
-            admin_role_id=app_settings.localserver.discord_bot_admin_role_id,
-        )
-
     def valid_value(value, expected_type):
         # Ensure the value is the expected type
         if expected_type == "port":
@@ -804,28 +747,23 @@ def flask_app():
                 "serverVersion": message["server_version"],
             }
 
+            palguard_installed = False
             if "palguard_commands" in message:
                 reply["vars"]["palguardCommands"] = message[
                     "palguard_commands"
                 ]
-                discord_bot.palguard_installed = True
+                palguard_installed = True
 
             if app_settings.localserver.discord_bot_enabled:
-
-                # Create discord bot task to be run on a separate thread
-                def discord_bot_task():
-                    asyncio.run(discord_bot.start())
-
-                threading.Thread(target=discord_bot_task).start()
-
-                discord_bot.rcon_ip = host
-                discord_bot.rcon_port = port
-                discord_bot.rcon_password = password
+                discord_bot = app_settings.discord_bot
+                discord_bot.rcon_ip = app_settings.localserver.ip
+                discord_bot.rcon_port = app_settings.localserver.port
+                discord_bot.rcon_password = app_settings.localserver.password
                 discord_bot.base64_rcon = (
                     app_settings.localserver.base64_encoded
                 )
-
-                # Start the bot using asyncio in a separate thread
+                if "palguard_commands" in message:
+                    discord_bot.palguard_installed = palguard_installed
 
             # logging.info("Reply: %s", reply)
             return reply
@@ -924,6 +862,16 @@ def flask_app():
             if "restarting" in data:
                 if data["restarting"]:
                     app_settings.localserver.restarting = True
+
+            if app_settings.localserver.discord_bot_enabled:
+
+                discord_bot = app_settings.discord_bot
+
+                discord_loop = discord_bot.loop
+                asyncio.run_coroutine_threadsafe(
+                    discord_bot.shutdown(),
+                    discord_loop,
+                )
 
             app_settings.localserver.expected_to_be_running = False
             app_settings.localserver.shutting_down = False
@@ -1034,6 +982,7 @@ def flask_app():
     def start_server_socket(data):
         def func(data):
             result = run_server(launcher_args=data)
+            launcher_args = data
             logging.info("Launch Server Result: %s", result)
 
             message = result["message"]
@@ -1070,6 +1019,117 @@ def flask_app():
                 # app_settings.localserver.running = True
                 app_settings.localserver.expected_to_be_running = True
                 app_settings.localserver.last_launcher_args = data
+
+                if launcher_args["discord_bot_enabled"]:
+
+                    discord_bot: DiscordClient = None
+                    app_settings.discord_bot = None
+                    reply["discord"] = {
+                        "success": True,
+                        "message": "Discord Bot Launched Successfully",
+                    }
+                    discord_bot_valid_settings = True
+
+                    if launcher_args["discord_bot_enabled"] is not None:
+                        app_settings.localserver.discord_bot_enabled = (
+                            launcher_args["discord_bot_enabled"]
+                        )
+                    if (
+                        launcher_args["discord_bot_token"] is not None
+                        and launcher_args["discord_bot_token"] != ""
+                    ):
+                        app_settings.localserver.discord_bot_token = (
+                            launcher_args["discord_bot_token"]
+                        )
+                    else:
+                        reply["discord"]["success"] = False
+                        reply["discord"][
+                            "message"
+                        ] = "Invalid Discord Bot Token"
+                        discord_bot_valid_settings = False
+                    if (
+                        launcher_args["discord_bot_server_id"] is not None
+                        and launcher_args["discord_bot_server_id"] != ""
+                    ):
+                        app_settings.localserver.discord_bot_server_id = int(
+                            launcher_args["discord_bot_server_id"]
+                        )
+                    else:
+                        reply["discord"]["success"] = False
+                        reply["discord"][
+                            "message"
+                        ] = "Invalid Discord Server ID"
+                        discord_bot_valid_settings = False
+                    if (
+                        launcher_args["discord_bot_channel_id"] is not None
+                        and launcher_args["discord_bot_channel_id"] != ""
+                    ):
+                        app_settings.localserver.discord_bot_channel_id = int(
+                            launcher_args["discord_bot_channel_id"]
+                        )
+                    else:
+                        reply["discord"]["success"] = False
+                        reply["discord"][
+                            "message"
+                        ] = "Invalid Discord Channel ID"
+                        discord_bot_valid_settings = False
+                    if (
+                        launcher_args["discord_bot_admin_role_id"] is not None
+                        and launcher_args["discord_bot_admin_role_id"] != ""
+                    ):
+                        app_settings.localserver.discord_bot_admin_role_id = (
+                            int(launcher_args["discord_bot_admin_role_id"])
+                        )
+                    else:
+                        reply["discord"]["success"] = False
+                        reply["discord"][
+                            "message"
+                        ] = "Invalid Discord Admin Role ID"
+                        discord_bot_valid_settings = False
+                    if (
+                        launcher_args["discord_bot_rcon_role_id"] is not None
+                        and launcher_args["discord_bot_rcon_role_id"] != ""
+                    ):
+                        app_settings.localserver.discord_bot_rcon_role_id = (
+                            int(launcher_args["discord_bot_rcon_role_id"])
+                        )
+                    else:
+                        reply["discord"]["success"] = False
+                        reply["discord"][
+                            "message"
+                        ] = "Invalid Discord RCON Role ID"
+                        discord_bot_valid_settings = False
+                    if launcher_args["discord_bot_rcon_enabled"] is not None:
+                        app_settings.localserver.discord_bot_rcon_enabled = (
+                            launcher_args["discord_bot_rcon_enabled"]
+                        )
+                    if launcher_args["discord_bot_joins_enabled"] is not None:
+                        app_settings.localserver.discord_bot_joins_enabled = (
+                            launcher_args["discord_bot_joins_enabled"]
+                        )
+                    if launcher_args["discord_bot_leaves_enabled"] is not None:
+                        app_settings.localserver.discord_bot_leaves_enabled = (
+                            launcher_args["discord_bot_leaves_enabled"]
+                        )
+
+                    if discord_bot_valid_settings:
+                        discord_bot = DiscordClient(
+                            token=app_settings.localserver.discord_bot_token,
+                            server_id=app_settings.localserver.discord_bot_server_id,
+                            channel_id=app_settings.localserver.discord_bot_channel_id,
+                            rcon_role_id=app_settings.localserver.discord_bot_rcon_role_id,
+                            admin_role_id=app_settings.localserver.discord_bot_admin_role_id,
+                        )
+
+                        app_settings.discord_bot = discord_bot
+                        logging.info("Discord Bot Created Successfully")
+
+                    # Create discord bot task to be run on a separate thread
+                    def discord_bot_task():
+                        asyncio.run(discord_bot.start())
+
+                    # Start the bot using asyncio in a separate thread
+                    threading.Thread(target=discord_bot_task).start()
 
                 check_server_running_socket()
 
@@ -1376,6 +1436,7 @@ def flask_app():
     ############# SERVER MONITOR #############
 
     async def put_message_in_discord_queue(message):
+        discord_bot = app_settings.discord_bot
         await discord_bot.message_queue.put(message)
 
     def server_minitor_task():
@@ -1416,6 +1477,7 @@ def flask_app():
                 if "players_joined" in result:
                     reply["players_joined"] = result["players_joined"]
 
+                discord_bot = app_settings.discord_bot
                 if (
                     app_settings.localserver.discord_bot_enabled
                     and discord_bot

@@ -60,9 +60,6 @@ class DiscordClient(commands.Bot):
         self.palguard_installed: bool = False
 
         self.player_count: int = 0
-        self.last_player_count: int = (
-            0  # Used to check if player count has changed
-        )
 
         super().__init__(
             command_prefix="!",  # Change to your preferred prefix
@@ -91,27 +88,18 @@ class DiscordClient(commands.Bot):
         await self.tree.sync(guild=guild)
 
         # Continue setting up your background tasks or other setup actions.
-        self.background_task = self.loop.create_task(self.send_message_task())
+        self.loop.create_task(self.send_message_task())
         self.loop.create_task(self.update_presence())
 
     async def process_message_queue(self):
         """Process the message queue."""
         while True:
-            logging.info("Last Player Count: %s", self.last_player_count)
-            logging.info("Player Count: %s", self.player_count)
-            if self.player_count != self.last_player_count:
-                # Set the bot's status to the player count
-                presence_message = f"{'alone' if self.player_count == 0 else 'with: '}{self.player_count if self.player_count > 0 else ''}{' players' if self.player_count > 1 else ' player' if self.player_count == 1 else ''}"
-                await self.change_presence(
-                    activity=discord.Game(name=presence_message)
-                )
             message = await self.message_queue.get()
             logging.info("Processing message: %s", message)
             try:
                 await self.send_message(message)
             except Exception as e:  # pylint: disable=broad-except
                 logging.error("Error: %s", str(e))
-            self.last_player_count = self.player_count
             await asyncio.sleep(0.5)
 
     async def update_presence(self):

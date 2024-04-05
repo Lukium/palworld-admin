@@ -491,7 +491,7 @@ def rcon_kick_player(ip_address, port, password, player_steamid) -> dict:
             ip_address,
             port,
             password,
-            f"KickPlayer {player_steamid}",
+            f"KickPlayer steam_{player_steamid}",
             result_queue,
         ),
     )
@@ -525,7 +525,7 @@ def rcon_ban_player(ip_address, port, password, player_steamid) -> dict:
             ip_address,
             port,
             password,
-            f"BanPlayer {player_steamid}",
+            f"BanPlayer steam_{player_steamid}",
             result_queue,
         ),
     )

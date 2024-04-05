@@ -83,10 +83,10 @@ class Settings:
     def __init__(self):
         self.dev: bool = False
         self.dev_ui: bool = False
-        self.no_ui: bool = False
-        self.version: str = "0.10.0"
+        self.no_ui: bool = True
+        self.version: str = "0.10.1"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.10.0"
+        self.supporter_version: str = "0.10.1"
         self.migration_mode: bool = False
         self.alembic_version: str = "26ad9b14b180"
         self.exe_path: str = ""
@@ -134,25 +134,6 @@ class Settings:
         self.monitor_shutdown()
         self.settings_ready = True
         self.app_ready = False
-
-    def launch_discord_client(
-        self,
-        token: str,
-        server_id: str,
-        channel_id: str,
-        rcon_role_id: str,
-        admin_role_id: str,
-    ) -> DiscordClient:
-        """Launch the Discord client."""
-        discord_bot = DiscordClient(
-            token=token,
-            server_id=server_id,
-            channel_id=channel_id,
-            rcon_role_id=rcon_role_id,
-            admin_role_id=admin_role_id,
-        )
-        self.discord_bot = discord_bot
-        return discord_bot
 
     def set_logging(self):
         """Set the logging configuration."""

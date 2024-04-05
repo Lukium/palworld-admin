@@ -1,4 +1,18 @@
 Release Notes
+v.0.10.1
+
+## New:
+- Added Discord Bot launch status to Palworld Admin UI Console on Server Launch when Bot is enabled.
+
+## Improved:
+- Discord Bot will update presence once per minute rather than when it sends a message (should give better representation of player count)
+- Discord Bot launch moved to Server Launch in code
+- Discord Bot will not shutdown when server is shutdown from Palworld Admin 
+
+## Fixed:
+- Kicking and Banning via RCON has been fixed
+- Fixed Discord bug causing DB to need to be deleted on every restart
+- Fixed bug where you would have to restart Palworld Admin to restart the Discord Bot after a server shutdown
 
 v0.10.0
 ## New:

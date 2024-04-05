@@ -1,6 +1,7 @@
 """ This file is the entry point for the application.
 It launches the Flask app and then the UI for the app. """
 
+import logging
 import os
 import platform
 import sys
@@ -26,8 +27,8 @@ def main():
     while not app_settings.settings_ready:
         time.sleep(0.1)
 
-    app = flask_app()
-    return app
+    logging.info("Launching the Flask app.")
+    flask_app()
 
 
 # Run the app
