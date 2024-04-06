@@ -84,9 +84,9 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.10.1"
+        self.version: str = "0.10.2"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.10.1"
+        self.supporter_version: str = "0.10.2"
         self.migration_mode: bool = False
         self.alembic_version: str = "26ad9b14b180"
         self.exe_path: str = ""
@@ -126,6 +126,7 @@ class Settings:
         self.set_app_os()
         self.detect_virtual_machine()
         self.detect_cpu_cores()
+        self.check_performance_counters()
         self.set_local_server_paths()
         self._parse_cli()
         self.check_for_palguard()
@@ -147,6 +148,33 @@ class Settings:
                 level=logging.INFO,
                 format="%(asctime)s - %(levelname)s - %(message)s",
             )
+
+    def check_performance_counters(self) -> None:
+        """Checks if \Process(*)% Processor Time and \Process(*)\Working Set - Private exist in the system."""
+        if self.app_os == "Windows":
+            command = r'$counterList = (Get-Counter -ListSet Process -ErrorAction SilentlyContinue).Paths; $exists = [bool]($counterList -contains "\Process(*)\% Processor Time" -and $counterList -contains "\Process(*)\Working Set - Private"); Write-Output ($exists.ToString() + " " + (Get-Culture).Name)'
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            result = subprocess.run(
+                ["powershell", "-Command", command],
+                capture_output=True,
+                check=True,
+                startupinfo=startupinfo,
+                text=True,
+            )
+            result_bool, result_culture = result.stdout.split()
+            if result_bool == "False":
+                logging.error(
+                    "Performance counters are not available, switching to WMI. Language: %s",
+                    result_culture,
+                )
+                self.localserver.use_get_counters = False
+            else:
+                logging.info(
+                    "Performance counters are available. Language: %s",
+                    result_culture,
+                )
+                self.localserver.use_get_counters = True
 
     def set_local_server_paths(self):
         """Set the paths for the local server based on the current environment."""

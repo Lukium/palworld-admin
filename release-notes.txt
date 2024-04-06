@@ -1,4 +1,12 @@
 Release Notes
+
+v0.10.2
+
+## Fix:
+- Process identification for non en-US Windows users
+- Native Windows Multi-Instance Support (Should not mis-identify processes outside Instance Directory)
+
+
 v.0.10.1
 
 ## New:

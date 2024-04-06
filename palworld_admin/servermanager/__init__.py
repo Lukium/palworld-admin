@@ -528,73 +528,121 @@ def identify_process_by_name():
     app_settings.localserver.pid = None
     attempts = 0
     max_attempts = 5
-    log = False
+    log = True
     if not app_settings.localserver.expected_to_be_running:
         max_attempts = 1
     if app_settings.app_os == "Windows":
-        # find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.ProcessName -like '*{app_settings.localserver.executable}*' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
-        find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.ProcessName -like '*{app_settings.localserver.executable}*' }} | ForEach-Object {{ $path = (Get-Item $_.MainModule.FileName).DirectoryName; $_ | Select-Object Id, @{{Name='DirectoryPath'; Expression={{$path}}}} }} \""  # pylint: disable=line-too-long
+        target_path = os.path.join(
+            os.getcwd(), app_settings.localserver.binaries_path
+        ).replace("/", "\\")
+        target_process = app_settings.localserver.executable
+
+        # Check if the use_get_counters flag is set to True
+        if app_settings.localserver.use_get_counters:
+            # find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.ProcessName -like '*{app_settings.localserver.executable}*' }} | Select-Object Id, Name, MainWindowTitle\""  # pylint: disable=line-too-long
+            # find_cmd = f"powershell \"Get-Process | Where-Object {{ $_.ProcessName -like '*{app_settings.localserver.executable}*' }} | ForEach-Object {{ $path = (Get-Item $_.MainModule.FileName).DirectoryName; $_ | Select-Object Id, @{{Name='DirectoryPath'; Expression={{$path}}}} }} \""  # pylint: disable=line-too-long
+            # This command will return the Process ID and the counter instance for the Process
+            find_cmd = [
+                "powershell",
+                "-Command",
+                rf'$TargetProcess = "{target_process}";',
+                rf'$TargetPath = "{target_path}";',
+                r'$TargetPID = (Get-Process | Where-Object { $_.ProcessName -like "*$TargetProcess*" } | ForEach-Object { $path = (Get-Item $_.MainModule.FileName).DirectoryName;',  # pylint: disable=line-too-long
+                r"if ($path -eq $TargetPath) { $_.Id } });",
+                r"$Process = Get-Process -Id $TargetPID;",
+                r"$ProcessName = $Process.ProcessName;",
+                r'$AllProcesses = Get-Counter "\Process($ProcessName*)\ID Process" -ErrorAction Stop;',
+                r"$MatchingInstance = $AllProcesses.CounterSamples | Where-Object { $_.CookedValue -eq $TargetPID };",
+                r'$InstanceNameWithSuffix = $MatchingInstance.Path -match "\((.*?)\)" | Out-Null;',
+                r"$InstanceNameWithSuffix = $matches[1];"
+                r'echo "$TargetPID,$InstanceNameWithSuffix"',
+            ]
+        # If the use_get_counters flag is set to False, get just the PID to be used with WMI
+        else:
+            find_cmd = [
+                "powershell",
+                "-Command",
+                rf'$TargetProcess = "{target_process}";',
+                rf'$TargetPath = "{target_path}";',
+                r'$TargetPID = (Get-Process | Where-Object { $_.ProcessName -like "*$TargetProcess*" } | ForEach-Object { $path = (Get-Item $_.MainModule.FileName).DirectoryName;',  # pylint: disable=line-too-long
+                r"if ($path -eq $TargetPath) { $_.Id } });",
+                r'echo "$TargetPID"',
+            ]
 
         while not app_settings.localserver.pid:
             try:
                 # Find processes
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 process = subprocess.run(
                     find_cmd,
                     check=True,
-                    shell=True,
+                    startupinfo=startupinfo,
                     capture_output=True,
                     text=True,
                 )
                 if process.stdout:
-                    matched_pid = None
-                    find_result = process.stdout
-                    own_path = os.path.join(
-                        os.getcwd(), app_settings.localserver.binaries_path
-                    )
-                    # Replace forward slashes with backslashes
-                    own_path = own_path.replace("/", "\\")
-
-                    # Drop lines in find_result that don't contain the own_path
-                    matched_result = "\n".join(
-                        [
-                            line
-                            for line in find_result.split("\n")
-                            if own_path in line
-                        ]
-                    )
-
-                    # If matched_result is not empty, extract the PID
-                    if matched_result:
-                        matched_pid = matched_result.strip().split(
-                            " ", maxsplit=1
-                        )[0]
-
-                    # find_instance = f'powershell "$TargetPID = {matched_pid}; $Process = Get-Process -Id $TargetPID; $ProcessName = $Process.ProcessName; $AllProcesses = Get-Counter "\Process($ProcessName*)\ID Process" -ErrorAction Stop; $MatchingInstance = $AllProcesses.CounterSamples | Where-Object {{ $_.CookedValue -eq $TargetPID }}; echo $MatchingInstance.InstanceName "'
-                    find_instance = f'powershell "$TargetPID = {matched_pid}; $Process = Get-Process -Id $TargetPID; $ProcessName = $Process.ProcessName; $AllProcesses = Get-Counter \\"\\Process($ProcessName*)\\ID Process\\" -ErrorAction Stop; $MatchingInstance = $AllProcesses.CounterSamples | Where-Object {{ $_.CookedValue -eq $TargetPID }}; echo $MatchingInstance.InstanceName"'
-                    #    "'
-                    isntance_process = subprocess.run(
-                        find_instance,
-                        check=True,
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                    )
-
-                    if isntance_process.stdout:
-                        instance_result = isntance_process.stdout.strip()
+                    if log:
+                        logging.info(
+                            "Process found: %s", process.stdout.strip()
+                        )
+                    if app_settings.localserver.use_get_counters:
+                        matched_pid, instance_result = (
+                            process.stdout.strip().split(",")
+                        )
                         app_settings.localserver.counters_instance_name = (
                             instance_result
                         )
+                        if log:
+                            logging.info(
+                                "Instance Result: %s", instance_result
+                            )
+                    else:
+                        matched_pid = process.stdout.strip()
+
+                    # matched_pid = None
+                    # find_result = process.stdout
+                    # own_path = os.path.join(
+                    #     os.getcwd(), app_settings.localserver.binaries_path
+                    # )
+                    # # Replace forward slashes with backslashes
+                    # own_path = own_path.replace("/", "\\")
+
+                    # # Drop lines in find_result that don't contain the own_path
+                    # matched_result = "\n".join(
+                    #     [
+                    #         line
+                    #         for line in find_result.split("\n")
+                    #         if own_path in line
+                    #     ]
+                    # )
+
+                    # # If matched_result is not empty, extract the PID
+                    # if matched_result:
+                    #     matched_pid = matched_result.strip().split(
+                    #         " ", maxsplit=1
+                    #     )[0]
+
+                    # # find_instance = f'powershell "$TargetPID = {matched_pid}; $Process = Get-Process -Id $TargetPID; $ProcessName = $Process.ProcessName; $AllProcesses = Get-Counter "\Process($ProcessName*)\ID Process" -ErrorAction Stop; $MatchingInstance = $AllProcesses.CounterSamples | Where-Object {{ $_.CookedValue -eq $TargetPID }}; echo $MatchingInstance.InstanceName "'
+                    # find_instance = f'powershell "$TargetPID = {matched_pid}; $Process = Get-Process -Id $TargetPID; $ProcessName = $Process.ProcessName; $AllProcesses = Get-Counter \\"\\Process($ProcessName*)\\ID Process\\" -ErrorAction Stop; $MatchingInstance = $AllProcesses.CounterSamples | Where-Object {{ $_.CookedValue -eq $TargetPID }}; echo $MatchingInstance.InstanceName"'
+                    # #    "'
+                    # isntance_process = subprocess.run(
+                    #     find_instance,
+                    #     check=True,
+                    #     shell=True,
+                    #     capture_output=True,
+                    #     text=True,
+                    # )
+
+                    # if isntance_process.stdout:
+                    #     instance_result = isntance_process.stdout.strip()
+                    #     app_settings.localserver.counters_instance_name = (
+                    #         instance_result
+                    #     )
 
                     if log:
-                        logging.info("Process found: %s", process.stdout)
-                        logging.info(
-                            "Own Path: %s",
-                            own_path,
-                        )
-                        logging.info("Matched Result: %s", matched_result)
                         logging.info("Matched PID: %s", matched_pid)
-                        logging.info("Instance Result: %s", instance_result)
+
                     # Extract process IDs
                     # pids = re.findall(
                     #     r"^\s*(\d+)", process.stdout, re.MULTILINE
@@ -989,17 +1037,17 @@ def check_server_running() -> dict:
                 if log:
                     logging.info("Server is not running: %s", result)
         except subprocess.CalledProcessError as e:
-            # If Get-Counter fails, switch to WMI and try again
-            if (
-                app_settings.localserver.use_get_counters
-                and not app_settings.localserver.get_counters_succeeded
-                and not app_settings.localserver.installing
-            ):
-                app_settings.localserver.use_get_counters = False
-                logging.info(
-                    "Switching to WMI from Get-Counters and trying again..."
-                )
-                return check_server_running()
+            # # If Get-Counter fails, switch to WMI and try again
+            # if (
+            #     app_settings.localserver.use_get_counters
+            #     and not app_settings.localserver.get_counters_succeeded
+            #     and not app_settings.localserver.installing
+            # ):
+            #     app_settings.localserver.use_get_counters = False
+            #     logging.info(
+            #         "Switching to WMI from Get-Counters and trying again..."
+            #     )
+            #     return check_server_running()
 
             # Check if the exit status was 1, which means the process was not found
             if e.returncode == 1:
