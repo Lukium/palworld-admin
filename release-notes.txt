@@ -1,5 +1,10 @@
 Release Notes
 
+v0.10.3
+
+## Fix:
+- Auto-Backup failing to create new backups past the backup limit
+
 v0.10.2
 
 ## Fix:

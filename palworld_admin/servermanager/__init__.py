@@ -1511,7 +1511,7 @@ def backup_server(query: dict) -> dict:
                 if folder.find("AutoBackup") != -1:
                     folders_to_prune.append(folder)
 
-            folders_to_prune.sort(reverse=True)
+            folders_to_prune.sort(reverse=False)
 
             # remove old backups
             if len(folders_to_prune) > int(backup_count):

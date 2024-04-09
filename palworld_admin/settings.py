@@ -84,9 +84,9 @@ class Settings:
         self.dev: bool = False
         self.dev_ui: bool = False
         self.no_ui: bool = True
-        self.version: str = "0.10.2"
+        self.version: str = "0.10.3"
         self.supporter_build: bool = False
-        self.supporter_version: str = "0.10.2"
+        self.supporter_version: str = "0.10.3"
         self.migration_mode: bool = False
         self.alembic_version: str = "26ad9b14b180"
         self.exe_path: str = ""
