@@ -218,6 +218,7 @@ def rcon_connect(ip_address, port, password, skip_save: bool = False) -> dict:
 
 def rcon_fetch_players(ip_address, port, password) -> dict:
     """Fetch the list of players currently connected to the server."""
+    log = False
     app_settings.localserver.last_online_players = (
         app_settings.localserver.online_players
     )
@@ -253,6 +254,8 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
 
     # Use first line of result to determine if the command was successful,
     # expect "name,playeruid,steamid"
+    if log:
+        logging.info("Fetch Players Result:\n%s", result)
     if "name,playeruid,steamid" in result:
         reply["status"] = "success"
         reply["message"] = "Players fetched successfully"
@@ -269,7 +272,8 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
                 "name": player_data[0],
                 "playeruid": player_data[1],
                 "steamid": player_data[2],
-                "saveid": hex(int(player_data[1]))[2:].upper(),
+                # "saveid": hex(int(player_data[1]))[2:].upper(),
+                "saveid": player_data[1],
                 "online": True,
             }
             player_list.append(player_info)
@@ -278,7 +282,7 @@ def rcon_fetch_players(ip_address, port, password) -> dict:
         second_player_list = player_list.copy()
         # Drop from second player list any players whose playeruid is all 0s
         for player in player_list:
-            if player["playeruid"] == "00000000":
+            if player["playeruid"] == "00000000000000000000000000000000":
                 second_player_list.remove(player)
 
         app_settings.localserver.online_players = second_player_list
