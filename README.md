@@ -36,7 +36,7 @@ Compatibility: Tested on 23.04+, should work on 22.04+ as long as you have Pytho
 ### Installation:
 1. Choose version (See above)
 2. Create an empty directory. This is where the application will be run from. Recommended:<br>
-`c:\Palworld-Dedicated-Server` (Windows)<br>
+`Use the default directory in the installer, users installing elsewhere have experienced some permission issues, ignore this advice at your own peril` (Windows)<br> 
 `$HOME/Palworld-Dedicated-Server` (Linux)<br>
 **Note for Windows Users:**<br>
 The directory **MUST NOT BE IN** a `Known Folder`, including but not limited to, `My Documents`, `Downloads`, `Desktop` otherwise the SteamCMD installtion will fail.
