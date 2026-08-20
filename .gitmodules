@@ -1,0 +1,4 @@
+[submodule "palworld_admin/website/templates"]
+	path = palworld_admin/website/templates
+	url = https://github.com/Lukium/palworld-admin-ui.git
+	branch = main
