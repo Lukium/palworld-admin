@@ -585,13 +585,13 @@ def flask_app():
         )
         # Commit the player to the database
         commit_players_to_db(app_settings.localserver.all_players)
-        message = f"Steam ID: {steam_id} authenticated with with IP {session['client_ip']}"
+        message = f"Steam ID: {steam_id} authenticated with IP {session['client_ip']}"
         send_to_frontend(
             "update_players",
             {"success": True, "reply": {"player_auth": message}},
         )
         return render_template_string(
-            "Login successful. Steam ID: {{steam_id}} authenticated with with IP {{IP}}",
+            "Login successful. Steam ID: {{steam_id}} authenticated with IP {{IP}}",
             steam_id=steam_id,
             IP=session["client_ip"],
         )
